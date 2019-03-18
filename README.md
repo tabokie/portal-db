@@ -1,5 +1,6 @@
 # portal-db
-persistent and scalable key-value server.
+
+persistent and scalable in-memory key-value server. **PingCAP** internship homework.
 
 ## Todo
 
@@ -14,3 +15,14 @@ persistent and scalable key-value server.
   - [ ] Volatile Storage
   - [ ] query speed-up
   - [ ] persist engine
+
+## Feature
+
+-	**in-memory**: guarantee fast update and query unless key-value data exceeds memory capacity
+-	**persistent**: provide different level of persistency (best-effort, transaction-level)
+-	**consistent**: consistent `GET` / `PUT` and optional snapshot semantics for `SCAN` operation
+-	**scalable**: support range sharding
+
+## Tech Detail
+
+## Benchmark
