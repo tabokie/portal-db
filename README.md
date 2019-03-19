@@ -1,6 +1,6 @@
 # portal-db
 
-persistent and scalable in-memory key-value server. **PingCAP** internship homework.
+persistent and scalable in-memory key-value engine. **PingCAP** internship homework.
 
 ## Todo
 
@@ -24,5 +24,7 @@ persistent and scalable in-memory key-value server. **PingCAP** internship homew
 -	**scalable**: support range sharding
 
 ## Tech Detail
+
+**portal-db** provides `GET`, `PUT`, `DELETE`, `SCAN` operations on in-memory data set. This specific workload demands a space-efficient, ordered storage structure.
 
 ## Benchmark
