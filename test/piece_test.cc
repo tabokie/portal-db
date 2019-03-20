@@ -11,7 +11,7 @@ using namespace portal_db;
 
 test::Random rnd;
 
-TEST(KeyTest, Resource) {
+TEST(KeyTest, RAII) {
 	size_t size = 10000;
 	std::vector<Key> buffer;
 	while(size --) {
@@ -36,7 +36,7 @@ TEST(KeyTest, Comparable) {
 	}
 }
 
-TEST(KeyTest, Access) {
+TEST(KeyTest, CharwiseAccess) {
 	size_t size = 100;
 	while(size--) {
 		std::string s = rnd.NumericString(8);
