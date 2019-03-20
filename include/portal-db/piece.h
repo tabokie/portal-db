@@ -19,13 +19,20 @@ class Value {
 		: data_(NULL) { data_ = (data == NULL || len == 0) ? NULL : CopyData(data, len); }
 	Value(const Value& rhs) { data_ = (rhs.data_ == NULL) ? NULL : CopyData(rhs.data_, 256); }
 	virtual ~Value() { delete[] data_; }
+	void set_empty() { delete[] data_; data_ = NULL; }
 	bool empty() const { return data_ == NULL; }
 	template <size_t offset, size_t length>
-	bool copy(const char* p) {
+	void copy(const char* p) {
 		static_assert(offset + length <= 256, "access to value slice overflow");
 		// if(data_ == NULL) data_ = new char[256];
 		assert(data_ != NULL);
 		memcpy(data_ + offset, p, length);
+	}
+	template <size_t offset, size_t length>
+	void write(char* p) const {
+		static_assert(offset + length <= 256, "access to value slice overflow");
+		assert(data_ != NULL);
+		memcpy(p, data_ + offset, length);
 	}
 	// unsafe, copy right away
 	template <size_t offset, size_t length = 1>
@@ -43,7 +50,14 @@ class Value {
 	}
 };
 
-class Key {
+class CharwiseAccess {
+ public:
+ 	virtual ~CharwiseAccess() { }
+ 	virtual char operator[](size_t) const = 0;
+ 	virtual char& operator[](size_t) = 0;
+};
+
+class Key : public CharwiseAccess {
  public:
  	Key() = default;
  	Key(const char* data) {
@@ -64,17 +78,26 @@ class Key {
 		return reinterpret_cast<const char*>(data_);
 	}
 #ifdef LITTLE_ENDIAN
-	bool operator<(const Key& rhs) const {
-		for(int i = 0; i < 8; i++) if(data_[i] > rhs.data_[i]) return false; else if(data_[i] < rhs.data_[i]) return true;
+	bool operator<(const char* p) const {
+		for(int i = 0; i < 8; i++) if(data_[i] > p[i]) return false; else if(data_[i] < p[i]) return true;
 		return false; // eq
 	}
+	bool operator<(const Key& rhs) const {
+		return (*this) < rhs.data_;
+	}
+	bool operator==(const char* p) const {
+		for(int i = 0; i < 8; i++) if(data_[i] != p[i]) return false; 
+		return true; // eq
+	}
 	bool operator==(const Key& rhs) const {
-		for(int i = 0; i < 8; i++) if(data_[i] != rhs.data_[i]) return false; 
+		return (*this) == rhs.data_;
+	}
+	bool operator<=(const char* p) const {
+		for(int i = 0; i < 8; i++) if(data_[i] > p[i]) return false; else if(data_[i] < p[i]) return true;
 		return true; // eq
 	}
 	bool operator<=(const Key& rhs) const {
-		for(int i = 0; i < 8; i++) if(data_[i] > rhs.data_[i]) return false; else if(data_[i] < rhs.data_[i]) return true;
-		return true; // eq
+		return (*this) <= rhs.data_;
 	}
 	std::string to_string() const {
 		return std::string((char*)data_, 8);

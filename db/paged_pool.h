@@ -4,15 +4,17 @@
 #include "util/file.h"
 
 #include <atomic>
+#include <iostream>
 
 namespace portal_db {
 
+// test::MaximumSize = 2 ^ 24 = 16 MB
 // MaximumSize = 2 ^ 33 = 8 GB
 // PageSize = 2 ^ 22 = 4 KB
 template <
 	size_t SliceSize, 
-	size_t MaximumSize = (1ULL << 33),
-	size_t PageSize = (1 << 12)>
+	size_t MaximumPower = 24, // = 33,
+	size_t PagePower = 12>
 class PagedPool: public SequentialFile {
  public:
  	PagedPool(std::string filename): SequentialFile(filename) {
@@ -39,23 +41,23 @@ class PagedPool: public SequentialFile {
  	}
  	const char* Get(size_t offset) const {
  		size_t bucket = offset / per_bucket_num_;
- 		if(bucket_ >= bucket_size_) {
+ 		if(bucket >= bucket_size_) {
  			return NULL;
  		}
  		size_t subslot = offset - bucket * per_bucket_num_;
  		char* p = bucket_[bucket].load();
- 		if(p != NULL) return p[subslot * SliceSize];
+ 		if(p != NULL) return p + subslot * SliceSize;
  		return NULL;
  	}
- 	char* New() {
+ 	size_t New() {
  		size_t slot = std::atomic_fetch_add(&size_, 1);
  		size_t bucket = slot / per_bucket_num_;
  		if(bucket >= bucket_num_) {
- 			return NULL;
+ 			return 0x0fffffff;
  		}
  		size_t subslot = slot - bucket * per_bucket_num_;
  		AllocBucket(bucket);
- 		return bucket_[bucket] + subslot * SliceSize;
+ 		return slot;
  	}
  	Status MakeSnapshot () {
  		if(!opened()) {
@@ -109,10 +111,24 @@ class PagedPool: public SequentialFile {
  	size_t capacity() const {
  		return bucket_num_ * per_bucket_num_;
  	}
+ 	// for Debug
+ 	void inspect() const {
+ 		size_t size = size_.load();
+ 		char tmp[SliceSize + 1];
+ 		tmp[SliceSize] = '\0';
+ 		for(int i = 0; i < size; i++) {
+ 			const char* p = Get(i);
+ 			memcpy(tmp, p, SliceSize);
+ 			for(int j = 0; j < 8; j++) {
+ 				std::cout << tmp[j];
+ 			}
+ 			std::cout << std::endl;
+ 		}
+ 	}
  private:
- 	static constexpr size_t per_bucket_num_ = PageSize / SliceSize; // slice
- 	static constexpr size_t per_bucket_bytes_ = PageSize / SliceSize * SliceSize; // byte
- 	static constexpr size_t bucket_num_ = (MaximumSize + SliceSize) / SliceSize;
+ 	static constexpr size_t per_bucket_num_ = (1 << PagePower) / SliceSize; // slice
+ 	static constexpr size_t per_bucket_bytes_ = per_bucket_num_ * SliceSize; // byte
+ 	static constexpr size_t bucket_num_ = (1 << (MaximumPower - PagePower));
  	static constexpr size_t snapshot_header_ = sizeof(size_t); // store `size_` field
  	std::atomic<size_t> size_; // size of slices
  	std::atomic<size_t> bucket_size_; // size of buckets
