@@ -5,10 +5,10 @@
 #include <cstring>
 #include <iostream>
 
-using namespace portal_db_impl;
+using namespace portal_db;
 
 TEST(PagedPoolTest, RAII) {
-	PagedPool<256> pool;
+	PagedPool<256> pool("unique");
 	for(int i = 0; i < pool.capacity() / 4; i++) {
 		char* tmp = pool.New();
 		memset(tmp, 0, sizeof(char) * 256);
@@ -16,8 +16,8 @@ TEST(PagedPoolTest, RAII) {
 	}
 }
 
-TEST(PagedPoolTest, Retrieve) {
-	PagedPool<32> pool;
+TEST(PagedPoolTest, Retrieval) {
+	PagedPool<32> pool("unique");
 	for(size_t i = 0; i < pool.capacity() / 4; i++) {
 		char* tmp = pool.New();
 		memcpy(tmp, reinterpret_cast<char*>(&i), sizeof(char) * 4);
@@ -27,4 +27,14 @@ TEST(PagedPoolTest, Retrieve) {
 		size_t retrieve = *reinterpret_cast<size_t*>(tmp);
 		EXPECT_EQ(retrieve, i);
 	}
+}
+
+TEST(PagedPoolTest, Snapshot) {
+	PagedPool<32> pool("unique");
+	for(size_t i = 0; i < pool.capacity() / 4; i++) {
+		char* tmp = pool.New();
+		memcpy(tmp, reinterpret_cast<char*>(&i), sizeof(char) * 4);
+	}
+	EXPECT_TRUE(pool.MakeSnapshot().inspect());
+	EXPECT_TRUE(pool.DeleteSnapshot().inspect());
 }

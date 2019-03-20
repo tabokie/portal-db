@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cassert>
+#include <iostream>
 
 namespace portal_db {
 
@@ -15,12 +16,11 @@ class Status {
 
   // Copy the specified status.
   Status(const Status& s);
+  Status(Status&& s);
   void operator=(const Status& s);
 
   // Return a success status.
   static Status OK() { return Status(); }
-  static Status OK(const std::string& value) { return Status(value.c_str()); }
-  static Status OK(const char* value) { return Status(value); }
 
   // Return error status of an appropriate type.
   static Status NotFound(const std::string& msg, const std::string& msg2 = std::string()) {
@@ -56,6 +56,18 @@ class Status {
 
   // Returns true iff the status indicates an InvalidArgument.
   bool IsInvalidArgument() const { return code() == kInvalidArgument; }
+
+  // for Debug
+  bool inspect() const {
+    if(state_ != NULL) std::cout << ToString() << std::endl;
+    return state_ == NULL;
+  }
+
+  Status& operator*=(const Status& rhs) {
+    if(!ok() || rhs.ok()) return (*this); // override
+    (*this) = rhs;
+    return (*this);
+  }
 
   // Return a string representation of this status suitable for printing.
   // Returns the string "OK" for success.
@@ -141,11 +153,6 @@ class Status {
     char* result = new char[size + 5];
     memcpy(result, state, size + 5);
     return result;
-  }
-  static const char* CopyData(const char* data) {
-    char* ret = new char[256];
-    memcpy(ret, data, sizeof(char) * 256);
-    return ret;
   }
 };
 
