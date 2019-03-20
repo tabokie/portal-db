@@ -57,7 +57,7 @@ Status SequentialFile::Read(size_t offset, size_t size, char* alloc_ptr){
   if(!rfRes)return Status::IOError("Read File Failed");
   return Status::OK();
 }
-Status SequentialFile::Write(size_t offset, size_t size, char* data_ptr) {
+Status SequentialFile::Write(size_t offset, size_t size, const char* data_ptr) {
 	if(!is_opened_) return Status::IOError("File Not Opened");
   if(!data_ptr)return Status::InvalidArgument("Null data pointer.");
   if(offset >= file_end_)return Status::OK();

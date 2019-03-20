@@ -53,7 +53,7 @@ class WritableFile{
   // Close then Delete
   virtual Status Delete(void);
   virtual Status Read(size_t offset, size_t size, char* alloc_ptr) = 0;
-  virtual Status Write(size_t offset, size_t size, char* data_ptr) = 0;
+  virtual Status Write(size_t offset, size_t size, const char* data_ptr) = 0;
   virtual Status SetEnd(size_t offset) = 0;
   inline bool opened() const { return is_opened_; }
   inline const ::std::string name(void) const{return fileName;}
@@ -67,7 +67,7 @@ class SequentialFile : public WritableFile{
   SequentialFile():WritableFile(){ }
   virtual ~SequentialFile(){ }
   Status Read(size_t offset, size_t size, char* alloc_ptr);
-  Status Write(size_t offset, size_t size, char* data_ptr);
+  Status Write(size_t offset, size_t size, const char* data_ptr);
   Status SetEnd(size_t offset);
 };
 

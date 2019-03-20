@@ -36,5 +36,13 @@ TEST(PagedPoolTest, Snapshot) {
 		memcpy(tmp, reinterpret_cast<char*>(&i), sizeof(char) * 4);
 	}
 	EXPECT_TRUE(pool.MakeSnapshot().inspect());
-	EXPECT_TRUE(pool.DeleteSnapshot().inspect());
+	pool.Close();
+	PagedPool<32> shadow("unique");
+	EXPECT_TRUE(shadow.ReadSnapshot().inspect());
+	for(size_t i = 0; i < shadow.capacity() / 4; i++) {
+		char* tmp = shadow.Get(i);
+		size_t retrieve = *reinterpret_cast<size_t*>(tmp);
+		EXPECT_EQ(retrieve, i);
+	}
+	EXPECT_TRUE(shadow.DeleteSnapshot().inspect());
 }

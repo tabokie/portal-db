@@ -8,11 +8,11 @@
 namespace portal_db {
 
 // MaximumSize = 2 ^ 33 = 8 GB
-// PageSize = 2 ^ 22 = 4 MB
+// PageSize = 2 ^ 22 = 4 KB
 template <
 	size_t SliceSize, 
 	size_t MaximumSize = (1ULL << 33),
-	size_t PageSize = (1 << 22)>
+	size_t PageSize = (1 << 12)>
 class PagedPool: public SequentialFile {
  public:
  	PagedPool(std::string filename): SequentialFile(filename) {
@@ -54,12 +54,7 @@ class PagedPool: public SequentialFile {
  			return NULL;
  		}
  		size_t subslot = slot - bucket * per_bucket_num_;
- 		size_t tmp;
- 		while((tmp = bucket_size_.load()) <= bucket) {
- 			if(std::atomic_compare_exchange_strong(&bucket_size_, &tmp, tmp + 1)) {
- 				bucket_[tmp] = new char[per_bucket_bytes_];
- 			}
- 		}
+ 		AllocBucket(bucket);
  		return bucket_[bucket] + subslot * SliceSize;
  	}
  	Status MakeSnapshot () {
@@ -67,12 +62,13 @@ class PagedPool: public SequentialFile {
  			Status ret = Open();
  			if(!ret.ok()) return ret;
  		}
- 		size_t size = bucket_size_;
- 		if(SequentialFile::size() < per_bucket_bytes_ * size) {
- 			SetEnd(per_bucket_bytes_ * size);
+ 		size_t sliceSize = size_.load();
+ 		size_t size = bucket_size_.load();
+ 		if(SequentialFile::size() < per_bucket_bytes_ * size + snapshot_header_) {
+ 			SetEnd(per_bucket_bytes_ * size + snapshot_header_);
  		}
- 		size_t offset = 0;
- 		Status ret = Status::OK();
+ 		Status ret = Write(0, sizeof(size_t), reinterpret_cast<char*>(&sliceSize));
+ 		size_t offset = snapshot_header_;
  		for(int i = 0; i < size && ret.ok(); i++) {
  			ret *= Write(offset, per_bucket_bytes_, bucket_[i]);
  			offset += per_bucket_bytes_;
@@ -80,9 +76,31 @@ class PagedPool: public SequentialFile {
  		return ret;
  	}
  	Status DeleteSnapshot() {
- 		Status ret = Close();
+ 		Status ret = Status::OK();
+ 		if(opened()) ret *= Close();
  		if(!ret.ok()) return ret;
  		ret *= Delete();
+ 		return ret;
+ 	}
+ 	Status ReadSnapshot() {
+ 		if(!opened()) {
+ 			Status ret = Open();
+ 			if(!ret.ok()) return ret;
+ 		}
+ 		size_t fileSize = SequentialFile::size();
+ 		size_t size;
+		Status ret = Read(0, sizeof(size_t), reinterpret_cast<char*>(&size));
+ 		size_t offset = snapshot_header_;
+ 		for(size_t bucket = 0; 
+ 			bucket < bucket_num_ && 
+ 			bucket * per_bucket_bytes_ + snapshot_header_ <= fileSize &&
+ 			ret.ok();
+ 			bucket++) {
+ 			AllocBucket(bucket);
+ 			ret *= Read(offset, per_bucket_bytes_, bucket_[bucket]);
+ 			offset += per_bucket_bytes_;
+ 		}
+ 		if(ret.ok()) size_.store(size); // take effetch
  		return ret;
  	}
  	size_t size() const {
@@ -95,9 +113,18 @@ class PagedPool: public SequentialFile {
  	static constexpr size_t per_bucket_num_ = PageSize / SliceSize; // slice
  	static constexpr size_t per_bucket_bytes_ = PageSize / SliceSize * SliceSize; // byte
  	static constexpr size_t bucket_num_ = (MaximumSize + SliceSize) / SliceSize;
+ 	static constexpr size_t snapshot_header_ = sizeof(size_t); // store `size_` field
  	std::atomic<size_t> size_; // size of slices
  	std::atomic<size_t> bucket_size_; // size of buckets
  	std::atomic<char*> bucket_[bucket_num_];
+ 	void AllocBucket(size_t idx) {
+ 		size_t tmp;
+ 		while((tmp = bucket_size_.load()) <= idx) {
+ 			if(std::atomic_compare_exchange_strong(&bucket_size_, &tmp, tmp + 1)) {
+ 				bucket_[tmp] = new char[per_bucket_bytes_];
+ 			}
+ 		}
+ 	}
 };
 
 } // namespace portal_db

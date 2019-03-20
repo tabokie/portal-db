@@ -22,15 +22,15 @@ class Value {
 	bool empty() const { return data_ == NULL; }
 	template <size_t offset, size_t length>
 	bool copy(const char* p) {
-		static_assert(offset + length <= 256);
+		static_assert(offset + length <= 256, "access to value slice overflow");
 		// if(data_ == NULL) data_ = new char[256];
 		assert(data_ != NULL);
 		memcpy(data_ + offset, p, length);
 	}
 	// unsafe, copy right away
-	template <size_t offset, size_t length>
+	template <size_t offset, size_t length = 1>
 	const char* pointer_to_slice() const {
-		static_assert(offset + length <= 256);
+		static_assert(offset + length <= 256, "access to value slice overflow");
 		assert(data_ != NULL);
 		return data_ + offset;
 	}
@@ -58,6 +58,10 @@ class Key {
 	}
 	char& operator[](size_t idx) {
 		return ((char*)data_)[idx];
+	}
+	// unsafe
+	const char* raw_ptr() const {
+		return reinterpret_cast<const char*>(data_);
 	}
 #ifdef LITTLE_ENDIAN
 	bool operator<(const Key& rhs) const {
