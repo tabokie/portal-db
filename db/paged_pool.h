@@ -8,12 +8,12 @@
 
 namespace portal_db {
 
-// test::MaximumSize = 2 ^ 24 = 16 MB
+// test::MaximumSize = 2 ^ 28 = 256 MB (100W record)
 // MaximumSize = 2 ^ 33 = 8 GB
 // PageSize = 2 ^ 22 = 4 KB
 template <
   size_t SliceSize, 
-  size_t MaximumPower = 24, // = 33,
+  size_t MaximumPower = 28, // = 33,
   size_t PagePower = 12>
 class PagedPool: public SequentialFile {
  public:

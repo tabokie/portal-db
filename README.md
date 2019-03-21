@@ -4,24 +4,26 @@ persistent and scalable in-memory key-value engine. **PingCAP** internship homew
 
 ## Todo
 
-- [ ] Server Front-end
-  - [ ] Customizable Protocol Layer
+- Server Front-end
   - [ ] Basic Socket Layer
-- [ ] Query Dispatcher
-  - [ ] Hash Dispatch
+  - [ ] Data Segmentation
+- Query Dispatcher
   - [ ] Range Dispatch
-  - [ ] Table Dispatch
-- [ ] Storage Engine
-  - [ ] Volatile Storage
-  - [ ] query speed-up
-  - [ ] persist engine
+- Storage Engine
+  - [x] HashTrie
+  - [ ] Thread Safety
+  - [ ] Scan Operation and Iterator
+- Durability
+  - [ ] Bin-Log
+  - [ ] Snapshot
+  - [ ] Thread Safety
 
 ## Feature
 
--	**in-memory**: guarantee fast update and query unless key-value data exceeds memory capacity
--	**persistent**: provide different level of persistency (best-effort, transaction-level)
--	**consistent**: consistent `GET` / `PUT` and optional snapshot semantics for `SCAN` operation
--	**scalable**: support range sharding
+- **in-memory**: guarantee fast update and query unless key-value data exceeds memory capacity
+- **persistent**: provide different level of persistency (best-effort, transaction-level)
+- **consistent**: consistent `GET` / `PUT` and optional snapshot semantics for `SCAN` operation
+- **scalable**: support range sharding
 
 ## Tech Overview
 
