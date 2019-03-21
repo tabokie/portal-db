@@ -22,13 +22,13 @@ Status WritableFile::Open(void){
 }
 
 Status WritableFile::Close(void){
-	is_opened_ = false;
+  is_opened_ = false;
   if(!CloseHandle(fhandle_))return Status::IOError("Close File Failed");
   return Status::OK();
 }
 
 Status WritableFile::Delete(void){
-	if(is_opened_) return Status::IOError("File Still Opened");
+  if(is_opened_) return Status::IOError("File Still Opened");
   if(!DeleteFile(fileName.c_str())){
     std::cout << "Windows error: " << GetLastError() << std::endl;
     return Status::IOError("Cannot Delete File");
@@ -38,7 +38,7 @@ Status WritableFile::Delete(void){
 
 // Derived Type :: Sequential File //
 Status SequentialFile::Read(size_t offset, size_t size, char* alloc_ptr){
-	if(!is_opened_) return Status::IOError("File Not Opened");
+  if(!is_opened_) return Status::IOError("File Not Opened");
   if(!alloc_ptr)return Status::InvalidArgument("Null data pointer.");
   if(offset + size > file_end_)return Status::InvalidArgument("Exceed file length.");
   DWORD dwPtr = SetFilePointer(fhandle_, 
@@ -58,7 +58,7 @@ Status SequentialFile::Read(size_t offset, size_t size, char* alloc_ptr){
   return Status::OK();
 }
 Status SequentialFile::Write(size_t offset, size_t size, const char* data_ptr) {
-	if(!is_opened_) return Status::IOError("File Not Opened");
+  if(!is_opened_) return Status::IOError("File Not Opened");
   if(!data_ptr)return Status::InvalidArgument("Null data pointer.");
   if(offset >= file_end_)return Status::OK();
   if(offset + size > file_end_)size = file_end_-offset;
@@ -83,7 +83,7 @@ Status SequentialFile::Write(size_t offset, size_t size, const char* data_ptr) {
 }
 
 Status SequentialFile::SetEnd(size_t offset) {
-	if(!is_opened_) return Status::IOError("File Not Opened");
+  if(!is_opened_) return Status::IOError("File Not Opened");
   DWORD dwPtr = SetFilePointer(fhandle_, \
     offset, \
     NULL, \
