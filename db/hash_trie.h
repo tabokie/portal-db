@@ -3,6 +3,9 @@
 
 #include "portal-db/piece.h"
 #include "paged_pool.h"
+#include "util/util.h"
+#include "util/readwrite_lock.h"
+#include "util/debug.h"
 
 #include <atomic>
 #include <iostream>
@@ -11,9 +14,16 @@ namespace portal_db {
 
 namespace {
 
+// pointer		|	indication										||
+// 0					|	physically deleted, usable		 |
+// 0x0fff			|	linked-list tail							 |
+
+// value 			|	indication										||
+// 0x0fff			|	not initialized								 |
+// (0,prefix)	| logically deleted							 |
 struct HashNode {
-	std::atomic<int32_t> pointer; // 0 means null, f means tail
-	uint32_t value; // start from 0, f means invalid
+	std::atomic<int32_t> pointer;
+	uint32_t value;
 	HashNode(const HashNode& rhs)
 		: pointer(rhs.pointer.load()),
 			value(rhs.value) { }
@@ -40,11 +50,12 @@ struct HashTrieNode {
 	int32_t parent;
 	int32_t id;
 	unsigned char level;
-	// positive / 0 if pointed to local hash
-	// negative if pointed to global node
-	// 0fffffff if null
+	// >=0 if pointed to local hash
+	// <0 if pointed to global node
+	// ==0x0fff if null
 	std::atomic<int32_t> forward[256];
 	HashNode table[hashSize];
+	ReadWriteLock latch;
 };
 
 } // lambda namespace
@@ -52,24 +63,30 @@ struct HashTrieNode {
 
 class HashTrie {
  public:
- 	HashTrie(): values_("unique") { nodes_.push_back(HashTrieNode<hash_size_>::MakeNode(0, 0, 0)); }
+ 	HashTrie(const std::string& filename)
+ 		: values_(filename) { 
+ 			nodes_.push_back(HashTrieNode<hash_size_>::MakeNode(0, 0, 0)); 
+ 		}
  	~HashTrie() { }
  	Status Get(const Key& key, Value& ret) {
  		HashTrieNode<hash_size_>::UnsafeRef node = nodes_[0].get();
  		unsigned char level = 0;
  		int32_t tmp;
+ 		// traverse by level
  		while(true) {
+ 			// find decend path
  			if( (tmp = -node->forward[key[level]]) > 0) {
+ 				// invalid path
  				if(tmp >= nodes_.size())
  					return Status::Corruption("access exceeds `HashTrieNode` vector");
  				node = nodes_[tmp].get();
- 			} else if(tmp == 0) {
+ 			} else if(tmp == 0) { // no prefix match
  				break;
- 			} else { // hit
+ 			} else { // find match
+		    // quadratic proding
  				unsigned int hash_val  = hash(key, level, 8) % hash_size_;
 		    unsigned int cur = hash_val;
 		    int offset = 1;
-		    // quadratic proding
 		    do{
 		    	HashNode& hnode = node->table[cur];
 		    	if(hnode.pointer != 0 && check_pull(hnode.value, key, ret)) return Status::OK();
@@ -86,58 +103,33 @@ class HashTrie {
  		HashTrieNode<hash_size_>::UnsafeRef node = nodes_[0].get();
  		unsigned char level = 0;
  		int32_t tmp;
+ 		// traverse by level
  		while(true) {
- 			// traverse by level //
- 			if( (tmp = -node->forward[key[level]]) > 0) { // find descend path
- 				if(tmp >= nodes_.size()) // invalid path
+ 			// find descend path
+ 			if( (tmp = -node->forward[key[level]]) > 0) {
+ 				// invalid path
+ 				if(tmp >= nodes_.size())
  					return Status::Corruption("access exceeds `HashTrieNode` vector");
  				node = nodes_[tmp].get();
  			} else { // hit level
+		    // quadratic proding
  				unsigned int hash_val  = hash(key, level, 8) % hash_size_;
 		    int32_t cur = hash_val;
 		    int offset = 1;
-		    int rest = 0;
-		    // quadratic proding //
-		    // first pass: find match
-		    // std::cout << "first pass: find match" << std::endl;
+		    int vacant = 0;
+		    COMMENT("first pass: find match")
 		    do{
 		    	HashNode& hnode = node->table[cur];
-		    	if(check(hnode.value, key)) {
-		    		// std::cout << "found match at " << cur << std::endl;
-		    		int32_t tmp;
-		    		if( (tmp=hnode.pointer) == 0) { // fix linked list
-		    			// std::cout << "it's deleted" << std::endl;
-		    			if(std::atomic_compare_exchange_strong(
-		    				&hnode.pointer, 
-		    				&tmp,
-		    				node->forward[key[level]]
-		    				)) { // fixed
-		    				if(!check_push(hnode.value, key, value)) 
-		    					return Status::Corruption("volatile fixed pair on hit entry");
-		    				tmp = hnode.pointer;
-		    				while(!std::atomic_compare_exchange_strong(
-			    				&node->forward[key[level]], 
-			    				&tmp,
-			    				cur
-			    				)) { hnode.pointer = tmp; }
-		    				return Status::OK();
-		    			}
-		    			// or taken by others
-		    		}
-		    		if(check_push(hnode.value, key, value)) {
-		    			return Status::OK();
-		    		}
-		    		// taken by other key
-		    	} else if(hnode.pointer == 0) {
-		    		// std::cout << "found null at "<< cur << std::endl;
-		    		rest ++;
+		    	if(hnode.pointer == 0) {
+		    		vacant ++;
+		    	} else if(check_push(hnode.value, key, value, level)) {
+		    		return Status::OK();
 		    	}
 		      cur = (cur+ 2*offset - 1) % hash_size_;
 		      offset++;
 		    } while( offset < probe_depth_ && cur != hash_val);
-		    // second pass: find vacant
-		    if(rest > 0) {
-		    	// std::cout << "second pass: find vacant" << std::endl;
+		    COMMENT("second pass: find vacant")
+		    if(vacant > 0) {
 			    cur = hash_val;
 			    offset = 1;
 			    do {
@@ -163,18 +155,45 @@ class HashTrie {
 			    				)) { hnode.pointer = tmp; }
 		    				return Status::OK();
 			    		}
-			    		rest --;
-			    		cur = (cur+ 2*offset - 1) % hash_size_;
-		     	 		offset++;
+			    		vacant --;
 			    	}
-			    }	while (rest > 0 && offset < probe_depth_ && cur != hash_val);
+			    	cur = (cur+ 2*offset - 1) % hash_size_;
+		     	 	offset++;
+			    }	while (vacant > 0 && offset < probe_depth_ && cur != hash_val);
 		    }
-		    // third pass: mutate
-		    nodes_.push_back(HashTrieNode<hash_size_>::MakeNode(nodes_.size(), node->id, level + 1));
+		    COMMENT("third pass: mutate")
+		    nodes_.push_back(
+		    	HashTrieNode<hash_size_>::MakeNode(
+		    		nodes_.size(),
+		    		node->id, 
+		    		level + 1
+		    	));
 		    HashTrieNode<hash_size_>::UnsafeRef new_node = nodes_.back().get();
-		    int old_idx = node->forward[key[level]];
-		    while(old_idx != 0x0fffffff) {
-
+		    int32_t old_idx = node->forward[key[level]];
+		    assert(old_idx >= 0);
+		    int32_t cur_idx = old_idx;
+		    while(cur_idx != 0x0fffffff) {
+		    	HashNode& hnode = node->table[cur_idx];
+		    	cur_idx = hnode.pointer;
+		    	if(!put_to_node(key, hnode.value, nodes_.size() - 1)) {
+		    		return Status::Corruption("mutation failed");
+		    	}
+		    }
+		    int32_t new_idx = old_idx;
+		    while(!std::atomic_compare_exchange_strong(
+		    	&node->forward[key[level]],
+		    	&new_idx,
+		    	-nodes_.size()
+		    	)) {
+		    	cur_idx = new_idx;
+		    	while(cur_idx != old_idx && cur_idx != 0x0fffffff) {
+		    		HashNode& hnode = node->table[cur_idx];
+			    	cur_idx = hnode.pointer;
+			    	if(!put_to_node(key, hnode.value, nodes_.size() - 1)) {
+			    		return Status::Corruption("mutation failed");
+			    	}
+		    	}
+		    	old_idx = new_idx;
 		    }
 			  return Status::IOError("full hash table");
  			}
@@ -212,14 +231,61 @@ class HashTrie {
  		}
  		return false;
  	}
- 	bool check_push(uint32_t index, const Key& key, const Value& value) {
+ 	bool check_push(uint32_t index, const Key& key, const Value& value, int level) {
  		if(index == 0x0fffffff) return false;
  		char* p = values_.Get(index);
- 		if(p && key == p) {
- 			value.write<0, 256>(p + 8);
- 			return true;
+ 		if(p) {
+ 			if(key == p) {
+	 			value.write<0, 256>(p + 8);
+	 			return true;
+ 			} else if( *(reinterpret_cast<uint64_t*>(p)) == 0) {
+ 				for(int i = 0; i < level + 1; i++) {
+ 					if(*(p+8+i) != key[i]) return false; // different prefix
+ 				}
+ 				memcpy(p, key.raw_ptr(), 8);
+ 				value.write<0,256>(p+8);
+ 				return true;
+ 			}
  		}
  		return false;
+ 	}
+ 	// exit on full
+ 	// no latch
+ 	// no overwrite
+ 	bool put_to_node(const Key& key, uint32_t value_idx, uint32_t node_idx) {
+ 		HashTrieNode<hash_size_>::UnsafeRef node = nodes_[node_idx].get();
+ 		char* p = values_.Get(value_idx);
+ 		if(p && *(reinterpret_cast<uint64_t*>(p)) == 0) { return true; }
+ 		int level = node->level;
+ 		// quadratic proding
+		unsigned int hash_val  = hash(key, level, 8) % hash_size_;
+    int32_t cur = hash_val;
+    int offset = 1;
+    cur = hash_val;
+    offset = 1;
+    do {
+  		HashNode& hnode = node->table[cur];
+    	int32_t tmp;
+    	if( (tmp=hnode.pointer) == 0) {
+    		// std::cout << "found null at " << cur << std::endl;
+    		if(std::atomic_compare_exchange_strong(&hnode.pointer, 
+    			&tmp, 
+    			node->forward[key[level]]
+    			)) {
+    			hnode.value = value_idx;
+  				tmp = hnode.pointer;
+    			while(!std::atomic_compare_exchange_strong(
+    				&node->forward[key[level]], 
+    				&tmp,
+    				cur
+    				)) { hnode.pointer = tmp; }
+  				return true;
+    		}
+    	}
+    	cur = (cur+ 2*offset - 1) % hash_size_;
+   	 	offset++;
+    }	while (offset < probe_depth_ && cur != hash_val);
+    return false;
  	}
 };
 

@@ -14,10 +14,13 @@ class Value {
  public:
 	Value(): data_(NULL) { }
 	Value(const char* data)
-		: data_(NULL) { data_ = (data == NULL) ? NULL : CopyData(data, 256); }
+		: data_(NULL) { 
+			data_ = (data == NULL) ? NULL : CopyData(data, 256); }
 	Value(const char* data, size_t len)
-		: data_(NULL) { data_ = (data == NULL || len == 0) ? NULL : CopyData(data, len); }
-	Value(const Value& rhs) { data_ = (rhs.data_ == NULL) ? NULL : CopyData(rhs.data_, 256); }
+		: data_(NULL) { 
+			data_ = (data == NULL || len == 0) ? NULL : CopyData(data, len); }
+	Value(const Value& rhs) { 
+		data_ = (rhs.data_ == NULL) ? NULL : CopyData(rhs.data_, 256); }
 	virtual ~Value() { delete[] data_; }
 	void set_empty() { delete[] data_; data_ = NULL; }
 	bool empty() const { return data_ == NULL; }
@@ -77,23 +80,28 @@ class Key : public CharwiseAccess {
 	const char* raw_ptr() const {
 		return reinterpret_cast<const char*>(data_);
 	}
-#ifdef LITTLE_ENDIAN
+ #ifdef LITTLE_ENDIAN
 	bool operator<(const char* p) const {
-		for(int i = 0; i < 8; i++) if(data_[i] > p[i]) return false; else if(data_[i] < p[i]) return true;
+		for(int i = 0; i < 8; i++) 
+			if(data_[i] > p[i]) return false; 
+			else if(data_[i] < p[i]) return true;
 		return false; // eq
 	}
 	bool operator<(const Key& rhs) const {
 		return (*this) < rhs.data_;
 	}
 	bool operator==(const char* p) const {
-		for(int i = 0; i < 8; i++) if(data_[i] != p[i]) return false; 
+		for(int i = 0; i < 8; i++) 
+			if(data_[i] != p[i]) return false; 
 		return true; // eq
 	}
 	bool operator==(const Key& rhs) const {
 		return (*this) == rhs.data_;
 	}
 	bool operator<=(const char* p) const {
-		for(int i = 0; i < 8; i++) if(data_[i] > p[i]) return false; else if(data_[i] < p[i]) return true;
+		for(int i = 0; i < 8; i++) 
+			if(data_[i] > p[i]) return false; 
+			else if(data_[i] < p[i]) return true;
 		return true; // eq
 	}
 	bool operator<=(const Key& rhs) const {
@@ -104,7 +112,7 @@ class Key : public CharwiseAccess {
 	}
  private:
  	char data_[8];
-#else
+ #else
 	bool operator<(const Key& rhs) const {
 		return data_[0] < rhs.data_[0] ||
 			data_[0] == rhs.data_[0] && data_[1] < rhs.data_[1];
@@ -122,7 +130,7 @@ class Key : public CharwiseAccess {
 	}
  private:
  	uint32_t data_[2];
-#endif
+ #endif
 };
 
 class KeyValue: public Key, public Value {

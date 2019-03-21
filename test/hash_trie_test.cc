@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#define PORTAL_DEBUG
 #include "db/hash_trie.h"
 #include "portal-db/piece.h"
 
@@ -8,7 +9,7 @@
 using namespace portal_db;
 
 TEST(HashTrieTest, BasicTest) {
-	HashTrie store;
+	HashTrie store("test_hash_trie");
 	size_t size = 100;
 	char buf[256];
 	for(int i = 0; i < size; i++) {
