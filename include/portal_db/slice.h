@@ -1,7 +1,7 @@
 #ifndef PORTAL_SLICE_H_
 #define PORTAL_SLICE_H_
 
-#include <piece.h>
+#include "piece.h"
 
 namespace portal_db {
 

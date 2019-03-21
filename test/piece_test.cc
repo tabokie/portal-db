@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "portal-db/piece.h"
+#include "portal_db/piece.h"
 #include "util.h"
 
 #include <vector>

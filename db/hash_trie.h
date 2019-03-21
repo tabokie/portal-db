@@ -1,7 +1,7 @@
 #ifndef PORTAL_DB_HASH_TRIE_H_
 #define PORTAL_DB_HASH_TRIE_H_
 
-#include "portal-db/piece.h"
+#include "portal_db/piece.h"
 #include "paged_pool.h"
 #include "util/util.h"
 #include "util/readwrite_lock.h"

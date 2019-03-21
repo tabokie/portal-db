@@ -2,8 +2,8 @@
 #define PORTAL_DB_BIN_LOGGER_H_
 
 #include "util/file.h" // File
-#include "portal-db/status.h"
-#include "portal-db/piece.h"
+#include "portal_db/status.h"
+#include "portal_db/piece.h"
 
 #include <cstdint>
 #include <atomic>

@@ -2,8 +2,8 @@
 
 #include "db/bin_logger.h"
 #include "util.h"
-#include "portal-db/status.h"
-#include "portal-db/piece.h"
+#include "portal_db/status.h"
+#include "portal_db/piece.h"
 
 #include <cstring>
 #include <string>

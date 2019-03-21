@@ -10,7 +10,9 @@ using namespace portal_db;
 TEST(PagedPoolTest, RAII) {
   PagedPool<256> pool("unique");
   for(int i = 0; i < pool.capacity() / 4; i++) {
-    char* tmp = pool.New();
+    size_t token = pool.New();
+    char* tmp = pool.Get(token);
+    EXPECT_TRUE(tmp != NULL);
     memset(tmp, 0, sizeof(char) * 256);
     EXPECT_EQ(pool.size(), i + 1);
   }
@@ -19,7 +21,9 @@ TEST(PagedPoolTest, RAII) {
 TEST(PagedPoolTest, Retrieval) {
   PagedPool<32> pool("unique");
   for(size_t i = 0; i < pool.capacity() / 4; i++) {
-    char* tmp = pool.New();
+    size_t token = pool.New();
+    char* tmp = pool.Get(token);
+    EXPECT_TRUE(tmp != NULL);
     memcpy(tmp, reinterpret_cast<char*>(&i), sizeof(char) * 4);
   }
   for(size_t i = 0; i < pool.capacity() / 4; i++) {
@@ -32,7 +36,9 @@ TEST(PagedPoolTest, Retrieval) {
 TEST(PagedPoolTest, Snapshot) {
   PagedPool<32> pool("unique");
   for(size_t i = 0; i < pool.capacity() / 4; i++) {
-    char* tmp = pool.New();
+    size_t token = pool.New();
+    char* tmp = pool.Get(token);
+    EXPECT_TRUE(tmp != NULL);
     memcpy(tmp, reinterpret_cast<char*>(&i), sizeof(char) * 4);
   }
   EXPECT_TRUE(pool.MakeSnapshot().inspect());

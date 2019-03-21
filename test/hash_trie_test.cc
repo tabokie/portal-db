@@ -2,7 +2,7 @@
 
 // #define PORTAL_DEBUG
 #include "db/hash_trie.h"
-#include "portal-db/piece.h"
+#include "portal_db/piece.h"
 
 #include <string>
 

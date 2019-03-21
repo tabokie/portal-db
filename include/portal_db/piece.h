@@ -1,0 +1,183 @@
+#ifndef PORTAL_PIECE_H_
+#define PORTAL_PIECE_H_
+
+#include <cstdint>
+#include <string>
+#include <cassert>
+#include <iostream>
+
+#include "port.h"
+
+namespace portal_db {
+
+class Value {
+ public:
+  Value(): value_(NULL) { }
+  Value(const char* data)
+    : value_(NULL) { 
+      value_ = (data == NULL) ? NULL : CopyData(data, 256); }
+  Value(const char* data, size_t len)
+    : value_(NULL) { 
+      value_ = (data == NULL || len == 0) ? NULL : CopyData(data, len); }
+  Value(const Value& rhs) { 
+    value_ = (rhs.value_ == NULL) ? NULL : CopyData(rhs.value_, 256); }
+  Value(Value&& rhs): value_(rhs.value_) { rhs.value_ = NULL; }
+  virtual ~Value() { delete[] value_; }
+  void set_empty() { delete[] value_; value_ = NULL; }
+  bool empty() const { return value_ == NULL; }
+  template <size_t offset, size_t length>
+  void copy(const char* p) {
+    static_assert(offset + length <= 256, "access to value slice overflow");
+    // if(value_ == NULL) value_ = new char[256];
+    assert(value_ != NULL);
+    memcpy(value_ + offset, p, length);
+  }
+  void copy(size_t offset, size_t length, const char* p) {
+    assert(value_ != NULL);
+    assert(offset + length <= 256);
+    memcpy(value_ + offset, p, length);
+  }
+  template <size_t offset, size_t length>
+  void write(char* p) const {
+    static_assert(offset + length <= 256, "access to value slice overflow");
+    assert(value_ != NULL);
+    memcpy(p, value_ + offset, length);
+  }
+  // unsafe, copy right away
+  template <size_t offset, size_t length = 1>
+  const char* pointer_to_slice() const {
+    static_assert(offset + length <= 256, "access to value slice overflow");
+    assert(value_ != NULL);
+    return value_ + offset;
+  }
+  static Value from_string(std::string a) {
+    Value ret;
+    ret.value_ = new char[256];
+    memset(ret.value_, 0, 256);
+    memcpy(ret.value_, a.c_str(), min(a.size(), 256));
+    return std::move(ret);
+  }
+ protected:
+  char* value_;
+  static char* CopyData(const char* rhs, size_t len) {
+    char* ret = new char[256];
+    memcpy(ret, rhs, sizeof(char) * len);
+    return ret;
+  }
+};
+
+class CharwiseAccess {
+ public:
+  virtual ~CharwiseAccess() { }
+  virtual char operator[](size_t) const = 0;
+  virtual char& operator[](size_t) = 0;
+};
+
+class Key : public CharwiseAccess {
+ public:
+  Key() = default;
+  Key(const char* data) {
+    if(data != NULL) memcpy((void*) key_, data, sizeof(char) * 8);
+  }
+  Key(const Key& rhs) {
+    memcpy((void*)key_, (void*)rhs.key_, sizeof(char) * 8);
+  }
+  virtual ~Key() { }
+  char operator[](size_t idx) const {
+    return ((char*)key_)[idx];
+  }
+  char& operator[](size_t idx) {
+    return ((char*)key_)[idx];
+  }
+  // unsafe
+  const char* raw_ptr() const {
+    return reinterpret_cast<const char*>(key_);
+  }
+  static Key from_string(std::string a) {
+    Key ret;
+    memset(ret.key_, 0, 8);
+    memcpy(ret.key_, a.c_str(), min(a.size(), 8) );
+    return std::move(ret);
+  }
+ #ifdef LITTLE_ENDIAN
+  bool operator<(const char* p) const {
+    for(int i = 0; i < 8; i++) 
+      if(key_[i] > p[i]) return false; 
+      else if(key_[i] < p[i]) return true;
+    return false; // eq
+  }
+  bool operator<(const Key& rhs) const {
+    return (*this) < rhs.key_;
+  }
+  bool operator==(const char* p) const {
+    for(int i = 0; i < 8; i++) 
+      if(key_[i] != p[i]) return false; 
+    return true; // eq
+  }
+  bool operator==(const Key& rhs) const {
+    return (*this) == rhs.key_;
+  }
+  bool operator<=(const char* p) const {
+    for(int i = 0; i < 8; i++) 
+      if(key_[i] > p[i]) return false; 
+      else if(key_[i] < p[i]) return true;
+    return true; // eq
+  }
+  bool operator<=(const Key& rhs) const {
+    return (*this) <= rhs.key_;
+  }
+  std::string to_string() const {
+    return std::string((char*)key_, 8);
+  }
+ protected:
+  char key_[8];
+ #else
+  bool operator<(const Key& rhs) const {
+    return key_[0] < rhs.key_[0] ||
+      key_[0] == rhs.key_[0] && key_[1] < rhs.key_[1];
+  }
+  bool operator==(const Key& rhs) const {
+    return key_[0] == rhs.key_[0] &&
+      key_[1] == rhs.key_[1];
+  }
+  bool operator<=(const Key& rhs) const {
+    return key_[0] < rhs.key_[0] ||
+      key_[0] == rhs.key_[0] && key_[1] <= rhs.key_[1];
+  }
+  std::string to_string() const {
+    return std::string((char*)key_, 8);
+  }
+ protected:
+  uint32_t key_[2];
+ #endif
+};
+
+class KeyValue: public Key, public Value {
+ public:
+  KeyValue() { }
+  KeyValue(const char* k): Key(k) { }
+  KeyValue(const std::string& k): Key(k.c_str()) { }
+  KeyValue(const char* k, const char* v, size_t len = 256)
+    : Key(k), Value(v,len) { }
+  KeyValue(const std::string& k, const char* v, size_t len = 256)
+    : KeyValue(k.c_str(), v, len) { }
+  KeyValue(const std::string& k, const std::string& v)
+    : KeyValue(k.c_str(), v.c_str()) { }
+  KeyValue(const KeyValue& rhs): Key(rhs), Value(rhs) { }
+  KeyValue(KeyValue&& rhs): Key(rhs), Value(rhs) { }
+  static KeyValue from_string(std::string a, std::string b) {
+    KeyValue ret;
+    memset(ret.key_, 0, 8);
+    memcpy(ret.key_, a.c_str(), min(a.size(), 8) );
+    ret.value_ = new char[256];
+    memset(ret.value_, 0, 256);
+    memcpy(ret.value_, b.c_str(), min(b.size(), 256));
+    return std::move(ret);
+  }
+  ~KeyValue() { }
+};
+
+
+} // namespace portal_db
+
+#endif // PORTAL_PIECE_H_

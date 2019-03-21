@@ -1,7 +1,7 @@
 #ifndef PORTAL_DB_GENERIC_HASH_TRIE_H_
 #define PORTAL_DB_GENERIC_HASH_TRIE_H_
 
-#include "portal-db/piece.h"
+#include "portal_db/piece.h"
 
 // generic version of HashTrie //
 

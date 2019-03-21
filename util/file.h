@@ -1,8 +1,8 @@
 #ifndef PORTAL_UTIL_FILE_H_
 #define PORTAL_UTIL_FILE_H_
 
-#include "util/port.h"
-#include "portal-db/status.h"
+#include "portal_db/port.h"
+#include "portal_db/status.h"
 
 #include <memory>
 #include <iostream>

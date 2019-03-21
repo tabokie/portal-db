@@ -4,6 +4,7 @@
 #include <string>
 #include <cassert>
 #include <iostream>
+#include <ostream>
 
 namespace portal_db {
 
@@ -58,8 +59,8 @@ class Status {
   bool IsInvalidArgument() const { return code() == kInvalidArgument; }
 
   // for Debug
-  bool inspect() const {
-    if(state_ != NULL) std::cout << ToString() << std::endl;
+  bool inspect(std::ostream& os = std::cout) const {
+    if(state_ != NULL) os << ToString() << std::endl;
     return state_ == NULL;
   }
 
