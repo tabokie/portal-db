@@ -27,6 +27,8 @@ persistent and scalable in-memory key-value engine. **PingCAP** internship homew
 
 ## Tech Overview
 
+![architecture](./docs/arch.png)
+
 **portal-db** provides `GET`, `PUT`, `DELETE`, `SCAN` operations on in-memory data set. This specific workload demands a space-efficient, high-performance storage structure.
 
 In this respect, portal-db proposes **HashTrie** as a hybrid data structure that leverages hashtable's query performance and trie's data ordering. HashTrie can dynamically transform between two different structures w.r.t. to data amount without serious data race.

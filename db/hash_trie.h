@@ -34,7 +34,7 @@ struct HashNode {
 // all naked
 // raw version
 template <size_t hashSize = 512>
-struct HashTrieNode {
+struct HashTrieNode: public NoMove {
   using Holder = std::unique_ptr<HashTrieNode>;
   using UnsafeRef = HashTrieNode*;
   static Holder MakeNode(int id, int parent, int level) {
@@ -47,6 +47,7 @@ struct HashTrieNode {
   HashTrieNode() {
     for(int i = 0; i < 256; i++) forward[i].store(0x0fffffff);
   }
+  static constexpr segment_size = 16;
   int32_t parent;
   int32_t id;
   unsigned char level;
@@ -56,6 +57,7 @@ struct HashTrieNode {
   std::atomic<int32_t> forward[256];
   HashNode table[hashSize];
   ReadWriteLock latch;
+  std::atomic_flag segment[segment_size];
 };
 
 class HashTrie {
@@ -251,7 +253,7 @@ class HashTrie {
     return Status::NotFound("missing key");
   }
   Status Scan(const Key& lower, const Key& upper, HashTrieIterator& ret) {
-
+    return Status::OK();
   }
  private:
   static constexpr size_t hash_size_ = 512;
