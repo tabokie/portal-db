@@ -6,13 +6,12 @@
 #include "util/util.h"
 #include "util/readwrite_lock.h"
 #include "util/debug.h"
+#include "hash_trie_iterator.h"
 
 #include <atomic>
 #include <iostream>
 
 namespace portal_db {
-
-namespace {
 
 // _pointer___|_indication__________________|
 //  0         | physically deleted, usable  |
@@ -58,9 +57,6 @@ struct HashTrieNode {
   HashNode table[hashSize];
   ReadWriteLock latch;
 };
-
-} // lambda namespace
-
 
 class HashTrie {
  public:
@@ -253,6 +249,9 @@ class HashTrie {
       level ++;
     }
     return Status::NotFound("missing key");
+  }
+  Status Scan(const Key& lower, const Key& upper, HashTrieIterator& ret) {
+
   }
  private:
   static constexpr size_t hash_size_ = 512;
