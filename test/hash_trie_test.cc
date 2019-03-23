@@ -4,10 +4,13 @@
 #include "db/hash_trie.h"
 #include "portal_db/piece.h"
 #include "db/hash_trie_iterator.h"
+#include "util.h"
 
 #include <string>
 
 using namespace portal_db;
+
+test::Timer timer;
 
 TEST(HashTrieTest, BasicTest) {
   HashTrie store("test_hash_trie");
@@ -91,4 +94,28 @@ TEST(HashTrieTest, ScanTest) {
     count ++;
   }
   EXPECT_EQ(count, size);
+}
+
+TEST(HashTrieBenchmark, PutGet) {
+  HashTrie store("test_hash_trie");
+  size_t size = 100'0000;
+  char buf[256];
+  Value value(buf);
+  timer.start();
+  for(int i = 0; i < size; i++) {
+    std::string tmp = std::to_string(i);
+    tmp += std::string(8-tmp.size(), ' ');
+    Key key(tmp.c_str());
+    EXPECT_TRUE(store.Put(key, value).inspect());
+  }
+  std::cout << timer.end() << std::endl;
+
+  timer.start();
+  for(int i = 0; i < size; i++) {
+    std::string tmp = std::to_string(i);
+    tmp += std::string(8-tmp.size(), ' ');
+    Key key(tmp.c_str());
+    EXPECT_TRUE(store.Get(key, value).inspect());
+  }
+  std::cout << timer.end() << std::endl;
 }

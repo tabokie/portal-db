@@ -38,3 +38,23 @@ Also, to provide transaction-level persistency for in-memory data, portal-db app
 It's worth noticing that portal-db also sacrifices `very-fast-scan`, `fast-recovery` in pursuit of those features. In another word, portal-db is purely an attempt to reach satisfiable tradeoff for this specific workload.
 
 ## Benchmark
+
+- Setup
+
+```
+CPU       :   Core i5-6200U @ 2.30GHz
+Memory    :   2 GB
+Keys      :   8 bytes
+Values    :   256 bytes
+Entries   :   100'0000
+```
+
+- In-Memory HashTrie
+
+```
+single thread:
+write     :   2.09354 seconds, 120.26 MB/s
+read      :   1.52483 seconds, 165.11 MB/s
+```
+
+- Persistent HashTrie

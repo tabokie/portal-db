@@ -9,7 +9,6 @@
 #include "hash_trie_iterator.h"
 #include "util/concurrent_vector.h"
 #include "util/atomic_lock.h"
-#include "util/defer.h"
 
 #include <atomic>
 #include <iostream>
