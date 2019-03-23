@@ -12,7 +12,7 @@ class ReadIterator {
  	virtual ~ReadIterator() { }
   virtual bool Next() = 0; // true of succeed
   virtual const ElementType& Peek() const = 0; // non-consume
-  virtual size_t size() = 0;
+  virtual size_t size() const = 0;
 };
 
 template <typename ElementType>

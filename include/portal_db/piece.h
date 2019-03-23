@@ -120,9 +120,9 @@ class Key : public CharwiseAccess {
     return *this;
   }
   virtual ~Key() { delete[] key_; }
-  bool empty() { return key_ == NULL; }
+  bool empty() const { return key_ == NULL; }
   char operator[](size_t idx) const {
-    if(!key_) return '\0';
+    if(!key_) return 0;
     return ((char*)key_)[idx];
   }
   char& operator[](size_t idx) {
@@ -141,42 +141,48 @@ class Key : public CharwiseAccess {
     memcpy(ret.key_, a.c_str(), min(a.size(), 8) );
     return std::move(ret);
   }
+  std::string to_string() const {
+    if(!key_) return std::string(8, '\0');
+    return std::string((char*)key_, 8);
+  }
  #ifdef LITTLE_ENDIAN
   bool operator<(const char* p) const {
-    if(!key_) return true;
+    if(!p) return true; // empty as +inf
+    if(!key_) return false;
     for(int i = 0; i < 8; i++) 
       if(key_[i] > p[i]) return false; 
       else if(key_[i] < p[i]) return true;
     return false; // eq
   }
   bool operator<(const Key& rhs) const {
-    if(!key_) return true;
+    if(!rhs.key_) return true; // empty as +inf
+    if(!key_) return false;
     return (*this) < rhs.key_;
   }
   bool operator==(const char* p) const {
-    if(!key_) return false;
+    if(!key_ && !p) return true;
+    if(!key_ || !p) return false;
     for(int i = 0; i < 8; i++) 
       if(key_[i] != p[i]) return false; 
     return true; // eq
   }
   bool operator==(const Key& rhs) const {
-    if(!key_) return false;
+    if(!key_ && !rhs.key_) return true;
+    if(!key_ || !rhs.key_) return false;
     return (*this) == rhs.key_;
   }
   bool operator<=(const char* p) const {
-    if(!key_) return true;
+    if(!p) return true; // empty as +inf
+    if(!key_) return false;
     for(int i = 0; i < 8; i++) 
       if(key_[i] > p[i]) return false; 
       else if(key_[i] < p[i]) return true;
     return true; // eq
   }
   bool operator<=(const Key& rhs) const {
-    if(!key_) return true;
+    if(!rhs.key_) return true; // empty as +inf
+    if(!key_) return false;
     return (*this) <= rhs.key_;
-  }
-  std::string to_string() const {
-    if(!key_) return std::string(8, '\0');
-    return std::string((char*)key_, 8);
   }
  protected:
   char *key_ = NULL;
@@ -190,23 +196,22 @@ class Key : public CharwiseAccess {
   }
  #else
   bool operator<(const Key& rhs) const {
-    if(!key_) return true;
+    if(!rhs.key_) return true; // empty as +inf
+    if(!key_) return false;
     return key_[0] < rhs.key_[0] ||
       key_[0] == rhs.key_[0] && key_[1] < rhs.key_[1];
   }
   bool operator==(const Key& rhs) const {
-    if(!key_) return false;
+    if(!rhs.key_ && !key_) return true;
+    if(!key_ || !rhs.key_) return false;
     return key_[0] == rhs.key_[0] &&
       key_[1] == rhs.key_[1];
   }
   bool operator<=(const Key& rhs) const {
-    if(!key_) return true;
+    if(!rhs.key_) return true; // empty as +inf
+    if(!key_) return false;
     return key_[0] < rhs.key_[0] ||
       key_[0] == rhs.key_[0] && key_[1] <= rhs.key_[1];
-  }
-  std::string to_string() const {
-    if(!key_) return std::string(8, '\0');
-    return std::string((char*)key_, 8);
   }
  protected:
   uint32_t *key_ = NULL;
