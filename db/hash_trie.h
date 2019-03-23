@@ -73,7 +73,7 @@ class HashTrie {
     : values_(filename) { 
       nodes_.push_back(HashTrieNode<hash_size_>::MakeNode(0, 0, 0, 0)); 
     }
-  ~HashTrie() { }
+  virtual ~HashTrie() { }
   Status Get(const Key& key, Value& ret) {
     HashTrieNode<hash_size_>::UnsafeRef node = nodes_[0];
     uint32_t level = 0;
@@ -297,7 +297,7 @@ class HashTrie {
     }
   }
  #endif // PORTAL_DEBUG
- private:
+ protected:
   static constexpr size_t hash_size_ = 512;
   static constexpr size_t probe_depth_ = 4;
   ConcurrentVector<HashTrieNode<hash_size_>> nodes_;

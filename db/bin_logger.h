@@ -23,30 +23,30 @@ class BinLogger : public SequentialFile {
   ~BinLogger() { }
   // recovery routine //
   Status Rewind() { cursor_ = 0; return Status::OK(); }
-  Status Read(const Key& ret, char*& alloc_ptr, bool& put) {
+  Status Read(Key& ret, char*& alloc_ptr, bool& put) {
     put = false;
     if(!opened()) {
-      Status ret = Open();
-      if(!ret.ok()) return ret;
+      Status status = Open();
+      if(!status.ok()) return status;
     }
     size_t cur = std::atomic_fetch_add(&cursor_, 12);
-    Status ret = Read(cur, 12, alloc_ptr);
-    if(!ret.ok()) return ret;
+    Status status = SequentialFile::Read(cur, 12, alloc_ptr);
+    if(!status.ok()) return status;
     for(int i = 0; i < 8; i++) ret[i] = alloc_ptr[i];
     uint32_t tmp = *(reinterpret_cast<uint32_t*>(alloc_ptr + 4));
     if( tmp == 0 ) {
       cur = std::atomic_fetch_add(&cursor_, 256);
-      ret *= Read(cur, 256, alloc_ptr);
-      if(ret.ok()) put = true;
-      return ret;
+      status *= SequentialFile::Read(cur, 256, alloc_ptr);
+      if(status.ok()) put = true;
+      return status;
     } else if(tmp == marker_) {
       return Status::OK();
     } else {
       memcpy(alloc_ptr, alloc_ptr + 8, 4);
       cur = std::atomic_fetch_add(&cursor_, 256 - 4);
-      ret *= Read(cur, 256 - 4, alloc_ptr + 4);
-      if(ret.ok()) put = true;
-      return ret;
+      status *= SequentialFile::Read(cur, 256 - 4, alloc_ptr + 4);
+      if(status.ok()) put = true;
+      return status;
     }
   }
   // logging routine //
@@ -101,7 +101,7 @@ class BinLogger : public SequentialFile {
       tmp = cursor_.load();
     } while(!std::atomic_compare_exchange_strong(&cursor_, &tmp, tmp - checkpoint_));
     char* buffer = new char[tmp - checkpoint_];
-    Status ret = Read(checkpoint_, tmp - checkpoint_, buffer);
+    Status ret = SequentialFile::Read(checkpoint_, tmp - checkpoint_, buffer);
     if(ret.ok()) ret *= Write(0, tmp - checkpoint_, buffer);
     if(ret.ok()) ret *= SetEnd(max((cursor_.load() + page_) / page_ * page_, (size() / 2 + page_ ) / page_ * page_ ));
     return ret;

@@ -42,19 +42,21 @@ It's worth noticing that portal-db also sacrifices `very-fast-scan`, `fast-recov
 - Setup
 
 ```
-CPU       :   Core i5-6200U @ 2.30GHz
-Memory    :   2 GB
-Keys      :   8 bytes
-Values    :   256 bytes
-Entries   :   100'0000
+CPU         :   Core i5-6200U @ 2.30GHz
+Memory      :   2 GB
+Keys        :   8 bytes
+Values      :   256 bytes
+Entries     :   100'0000
 ```
 
 - In-Memory HashTrie
 
 ```
 single thread:
-write     :   2.09354 seconds, 120.26 MB/s
-read      :   1.52483 seconds, 165.11 MB/s
+write       :   2.09354 seconds, 120.26 MB/s
+read        :   1.37388 seconds, 183.25 MB/s
+scan-sort   :   1.65211 seconds, 152.38 MB/s
+scan-unsort :   1.33734 seconds, 188.26 MB/s
 ```
 
 - Persistent HashTrie

@@ -4,6 +4,7 @@
 #include "db/hash_trie.h"
 #include "portal_db/piece.h"
 #include "db/hash_trie_iterator.h"
+#include "db/persist_hash_trie.h"
 #include "util.h"
 
 #include <string>
@@ -12,8 +13,8 @@ using namespace portal_db;
 
 test::Timer timer;
 
-TEST(HashTrieTest, BasicTest) {
-  HashTrie store("test_hash_trie");
+TEST(PersistHashTrieTest, BasicTest) {
+  PersistHashTrie store("test_persist_hash_trie");
   size_t size = 10000;
   char buf[256];
   for(int i = 0; i < size; i++) {
@@ -29,8 +30,8 @@ TEST(HashTrieTest, BasicTest) {
 }
 
 
-TEST(HashTrieTest, DeleteTest) {
-  HashTrie store("test_hash_trie");
+TEST(PersistHashTrieTest, DeleteTest) {
+  PersistHashTrie store("test_persist_hash_trie");
   size_t size = 1000;
   char buf[256];
   for(int i = 0; i < size; i++) {
@@ -47,8 +48,8 @@ TEST(HashTrieTest, DeleteTest) {
   }
 }
 
-TEST(HashTrieTest, PutThenRetrieve) {
-  HashTrie store("test_hash_trie");
+TEST(PersistHashTrieTest, PutThenRetrieve) {
+  PersistHashTrie store("test_persist_hash_trie");
   size_t size = 100000;
   char buf[256];
   for(int i = 0; i < size; i++) {
@@ -69,8 +70,8 @@ TEST(HashTrieTest, PutThenRetrieve) {
   }
 }
 
-TEST(HashTrieTest, ScanTest) {
-  HashTrie store("test_hash_trie");
+TEST(PersistHashTrieTest, ScanTest) {
+  PersistHashTrie store("test_persist_hash_trie");
   size_t size = 1000;
   char buf[256];
   for(int i = 0; i < size; i++) {
@@ -96,8 +97,8 @@ TEST(HashTrieTest, ScanTest) {
   EXPECT_EQ(count, size);
 }
 
-TEST(HashTrieBenchmark, PutGetScan) {
-  HashTrie store("test_hash_trie");
+TEST(PersistHashTrieBenchmark, PutGetScan) {
+  PersistHashTrie store("test_persist_hash_trie");
   size_t size = 100'0000;
   char buf[256];
   Value value(buf);
