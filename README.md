@@ -5,18 +5,21 @@ persistent and scalable in-memory key-value engine. **PingCAP** internship homew
 ## Todo
 
 - Server Front-end
-  - [ ] Basic Socket Layer
-  - [ ] Data Segmentation
+	-	[x] socket \* thread
+	-	[ ] socket \* multiplexing
+  -	[ ] chunk recovery from break
 - Query Dispatcher
-  - [ ] Range Dispatch
+  - [ ] range dispatch and sharding
 - Storage Engine
   - [x] HashTrie
-  - [ ] Thread Safety
-  - [ ] Scan Operation and Iterator
+  - [x] `SCAN` operation and iterator
+  -	[x] read-write thread safety
+  - [ ] lock-free thread safety
 - Durability
-  - [ ] Bin-Log
-  - [ ] Snapshot
-  - [ ] Thread Safety
+  - [x] snapshot and recovery
+  - [ ] bin-log and recovery
+  - [ ] thread safety
+  - [ ] persist benchmark
 
 ## Feature
 
