@@ -63,3 +63,23 @@ scan-unsort :   1.33734 seconds, 188.26 MB/s
 ```
 
 - Persistent HashTrie
+
+```
+single thread with two daemon threads:
+write       :   26.2163 seconds, 9.61 MB/s
+read        :   1.8911 seconds, 133.13 MB/s
+scan-sort   :   1.9776 seconds, 127.31 MB/s
+scan-unsort :   1.3179 seconds, 191.04 MB/s
+delete      :   25.5188 seconds, 9.86 MB/s
+resource usage:
+memory      :   344 MB
+snapshot    :   251 MB
+bin-log     :   0 ~ 2.7 MB
+```
+
+- Recovery
+
+```
+snapshot    :   2.3713 seconds, 106.17 MB/s
+bin-log     :   0.136 seconds
+```

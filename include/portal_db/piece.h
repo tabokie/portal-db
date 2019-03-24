@@ -43,11 +43,12 @@ class Value {
   template <size_t offset, size_t length>
   void copy(const char* p) {
     static_assert(offset + length <= 256, "access to value slice overflow");
-    // if(value_ == NULL) value_ = new char[256];
+    if(value_ == NULL) value_ = new char[256];
     assert(value_ != NULL);
     memcpy(value_ + offset, p, length);
   }
   void copy(size_t offset, size_t length, const char* p) {
+    if(value_ == NULL) value_ = new char[256];
     assert(value_ != NULL);
     assert(offset + length <= 256);
     memcpy(value_ + offset, p, length);

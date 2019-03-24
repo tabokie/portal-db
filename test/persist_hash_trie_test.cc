@@ -133,4 +133,40 @@ TEST(PersistHashTrieBenchmark, PutGetScan) {
   while(iterator2.Next()) { }
   std::cout << timer.end() << std::endl;
 
+  timer.start();
+  for(int i = 0; i < size; i++) {
+    std::string tmp = std::to_string(i);
+    tmp += std::string(8-tmp.size(), ' ');
+    Key key(tmp.c_str());
+    EXPECT_TRUE(store.Delete(key).inspect());
+  }
+  std::cout << timer.end() << std::endl;
+}
+
+TEST(PersistHashTrieBenchmark, Recovery) {
+  PersistHashTrie* pstore = new PersistHashTrie("test_persist_hash_trie");
+  PersistHashTrie& store = *pstore;
+  size_t size = 100'0000;
+  char buf[256];
+  Value value(buf);
+  timer.start();
+  for(int i = 0; i < size; i++) {
+    std::string tmp = std::to_string(i);
+    tmp += std::string(8-tmp.size(), ' ');
+    Key key(tmp.c_str());
+    EXPECT_TRUE(store.Put(key, value).inspect());
+  }
+  std::cout << timer.end() << std::endl;
+  delete pstore;
+
+  PersistHashTrie new_store("test_persist_hash_trie");
+
+  timer.start();
+  EXPECT_TRUE(new_store.RecoverSnapshot().inspect());
+  std::cout << timer.end() << std::endl;
+
+  timer.start();
+  EXPECT_TRUE(new_store.RecoverBinLog().inspect());
+  std::cout << timer.end() << std::endl;
+
 }

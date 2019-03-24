@@ -16,26 +16,27 @@ namespace portal_db {
 //  pad 0s in front (268 byte)
 // Delete (key, value): key - marker (12 byte)
 class BinLogger : public SequentialFile {
-
  public:
   BinLogger(std::string name)
     : SequentialFile(name), cursor_(0) { }
   ~BinLogger() { }
   // recovery routine //
   Status Rewind() { cursor_ = 0; return Status::OK(); }
-  Status Read(Key& ret, char*& alloc_ptr, bool& put) {
+  Status Read(Key& ret, char* alloc_ptr, bool& put) {
     put = false;
     if(!opened()) {
       Status status = Open();
       if(!status.ok()) return status;
     }
     size_t cur = std::atomic_fetch_add(&cursor_, 12);
+    if(cur + 256 + 8 > SequentialFile::size()) return Status::NotFound("EOF");
     Status status = SequentialFile::Read(cur, 12, alloc_ptr);
     if(!status.ok()) return status;
     for(int i = 0; i < 8; i++) ret[i] = alloc_ptr[i];
     uint32_t tmp = *(reinterpret_cast<uint32_t*>(alloc_ptr + 4));
     if( tmp == 0 ) {
       cur = std::atomic_fetch_add(&cursor_, 256);
+      if(cur + 256 > SequentialFile::size()) return Status::NotFound("EOF");
       status *= SequentialFile::Read(cur, 256, alloc_ptr);
       if(status.ok()) put = true;
       return status;
@@ -106,7 +107,7 @@ class BinLogger : public SequentialFile {
     if(ret.ok()) ret *= SetEnd(max((cursor_.load() + page_) / page_ * page_, (size() / 2 + page_ ) / page_ * page_ ));
     return ret;
   }
- private:
+ protected:
   static constexpr size_t page_ = (1 << 12); // 4 KB page
   static constexpr size_t padding_ = 4;
   static const uint32_t marker_ = 0xDEADBEEF;

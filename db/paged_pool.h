@@ -64,14 +64,14 @@ class PagedPool: public SequentialFile {
       Status ret = Open();
       if(!ret.ok()) return ret;
     }
-    size_t sliceSize = size_.load();
-    size_t size = bucket_size_.load();
-    if(SequentialFile::size() < per_bucket_bytes_ * size + snapshot_header_) {
-      SetEnd(per_bucket_bytes_ * size + snapshot_header_);
+    uint32_t sliceSize = size_.load();
+    uint32_t bucketSize = bucket_size_.load();
+    if(SequentialFile::size() < per_bucket_bytes_ * bucketSize + snapshot_header_) {
+      SetEnd(per_bucket_bytes_ * bucketSize + snapshot_header_);
     }
-    Status ret = Write(0, sizeof(size_t), reinterpret_cast<char*>(&sliceSize));
+    Status ret = Write(0, sizeof(uint32_t), reinterpret_cast<char*>(&sliceSize));
     size_t offset = snapshot_header_;
-    for(int i = 0; i < size && ret.ok(); i++) {
+    for(int i = 0; i < bucketSize && ret.ok(); i++) {
       ret *= Write(offset, per_bucket_bytes_, bucket_[i]);
       offset += per_bucket_bytes_;
     }
@@ -90,19 +90,20 @@ class PagedPool: public SequentialFile {
       if(!ret.ok()) return ret;
     }
     size_t fileSize = SequentialFile::size();
-    size_t size;
-    Status ret = Read(0, sizeof(size_t), reinterpret_cast<char*>(&size));
+    uint32_t sliceSize;
+    Status ret = Read(0, sizeof(uint32_t), reinterpret_cast<char*>(&sliceSize));
+    std::cout << "Slice Size = " << sliceSize << std::endl;
     size_t offset = snapshot_header_;
     for(size_t bucket = 0; 
       bucket < bucket_num_ && 
-      bucket * per_bucket_bytes_ + snapshot_header_ <= fileSize &&
+      offset + per_bucket_bytes_ <= fileSize &&
       ret.ok();
       bucket++) {
       AllocBucket(bucket);
       ret *= Read(offset, per_bucket_bytes_, bucket_[bucket]);
       offset += per_bucket_bytes_;
     }
-    if(ret.ok()) size_.store(size); // take effetch
+    if(ret.ok()) size_.store(sliceSize); // take effetch
     return ret;
   }
   size_t size() const {
@@ -129,7 +130,7 @@ class PagedPool: public SequentialFile {
   static constexpr size_t per_bucket_num_ = (1 << PagePower) / SliceSize; // slice
   static constexpr size_t per_bucket_bytes_ = per_bucket_num_ * SliceSize; // byte
   static constexpr size_t bucket_num_ = (1 << (MaximumPower - PagePower));
-  static constexpr size_t snapshot_header_ = sizeof(size_t); // store `size_` field
+  static constexpr size_t snapshot_header_ = sizeof(uint32_t); // store `size_` field
   std::atomic<size_t> size_; // size of slices
   std::atomic<size_t> bucket_size_; // size of buckets
   std::atomic<char*> bucket_[bucket_num_];

@@ -279,19 +279,6 @@ class HashTrie {
       }
     }
     std::cout << std::endl;
-    if(node->forward['9'] != 0x0fffffff && node->forward['9'] > 0) {
-      std::cout << "(";
-      int32_t idx = node->forward['9'];
-      while(idx != 0x0fffffff) {
-        if(idx == 0) {
-          std::cout << "ZERO";
-          break;
-        }
-        std::cout << std::string(values_.Get(node->table[idx-1].value), 8) << ",";
-        idx = node->table[idx-1].pointer;
-      }
-      std::cout << ")";
-    }
     for(int i = 0; i <= 127; i++) {
       if(node->forward[i] < 0) Dump(-node->forward[i]);
     }
@@ -358,6 +345,123 @@ class HashTrie {
       }
     }
     return false;
+  }
+  Status PutRecover(size_t value_idx) {
+    HashTrieNode<hash_size_>::UnsafeRef node = nodes_[0];
+    uint32_t level = 0;
+    int32_t forward_node;
+    char* key = values_.Get(value_idx);
+    if(key == NULL) return Status::Corruption("invalid value");
+    // traverse by level
+   CHECK_LEVEL:
+    if(level >= 8) return Status::OK(); // WOW
+    // find descend path //
+    if( (forward_node = node->forward[key[level]]) < 0) {
+      // invalid path
+      if( - forward_node >= nodes_.size())
+        return Status::Corruption("access exceeds `HashTrieNode` vector");
+      node = nodes_[-forward_node];
+      level ++;
+      goto CHECK_LEVEL;
+    }
+    // hit current level //
+    // quadratic proding
+    unsigned int hash_val  = hash(key, level, 8) % hash_size_;
+    int32_t cur = hash_val;
+    int offset = 1;
+    // no first pass
+    COMMENT("second pass: find vacant")
+    cur = hash_val;
+    offset = 1;
+    do {
+      HashNode& hnode = node->table[cur];
+      int32_t tmp;
+      // node is deleted
+      if( (tmp=hnode.pointer) == 0) {
+        // point to existing linked-list
+        if(std::atomic_compare_exchange_strong(&hnode.pointer, 
+          &tmp, 
+          node->forward[key[level]]
+          )) {
+          hnode.value = value_idx;
+          // insert as linked-list head
+          while(!std::atomic_compare_exchange_strong(
+            &node->forward[key[level]], 
+            &tmp,
+            cur + 1
+            )) {
+            if(tmp < 0) { // mutated
+              // not in linker-list
+              // need delete
+              hnode.pointer = 0;
+              goto CHECK_LEVEL;
+            }
+            hnode.pointer = tmp; // point to new head
+          }
+          return Status::OK();
+        }
+        // or preempted
+      }
+      cur = (cur+ 2*offset - 1) % hash_size_;
+      offset++;
+    } while (offset < probe_depth_ && cur != hash_val);
+    COMMENT("third pass: mutate")
+    if(node->forward[key[level]] < 0) {
+      goto CHECK_LEVEL; // mutated
+      // release out-of-scope lock
+    }
+    // create new node
+    int32_t new_node_idx = nodes_.push_back(
+      HashTrieNode<hash_size_>::MakeNode(
+        0,
+        node->id,
+        level + 1,
+        key[level]
+      ));
+    HashTrieNode<hash_size_>::UnsafeRef new_node = nodes_[new_node_idx];
+    new_node->id = new_node_idx;
+    // traverse old list and copy to new node
+    int32_t old_idx = node->forward[key[level]]; // snapshot
+    int32_t cur_idx = old_idx;
+    assert(cur_idx > 0);
+    Status status;
+    while(cur_idx != 0x0fffffff) {
+      HashNode& hnode = node->table[cur_idx - 1];
+      cur_idx = hnode.pointer; // linked-list.next
+      assert(values_.Get(hnode.value) != NULL);
+      // handle all potential mutation
+      status *= PutToIsolatedNode(hnode.value, new_node_idx);
+      if(!status.ok()) return status;
+    }
+    // now insert current record
+    status *= PutToIsolatedNode(value_idx, new_node_idx);
+    if(!status.ok())
+      return status;
+    // mutate old forward pointer
+    int32_t new_idx = old_idx;
+    while(!std::atomic_compare_exchange_strong(
+      &node->forward[key[level]],
+      &new_idx,
+      -new_node_idx
+      )) {
+      // if new value is inserted, copy to new node
+      cur_idx = new_idx;
+      while(cur_idx != old_idx && cur_idx != 0x0fffffff) {
+        HashNode& hnode = node->table[cur_idx - 1];
+        cur_idx = hnode.pointer;
+        status *= PutToIsolatedNode(hnode.value, new_node_idx);
+        if(!status.ok()) return status;
+      }
+      old_idx = new_idx;
+    }
+    // physically delete old item
+    cur_idx = new_idx;
+    while(cur_idx != 0x0fffffff) {
+      HashNode& hnode = node->table[cur_idx - 1];
+      cur_idx = hnode.pointer;
+      hnode.pointer = 0;
+    }
+    return Status::OK();
   }
   Status PutWithMutationLock(const Key& key, 
                              const Value& value, 
@@ -434,6 +538,7 @@ class HashTrie {
       return Status::OK();
     HashTrieNode<hash_size_>::UnsafeRef node = nodes_[node_idx];
     int level = node->level;
+    if(level >= 8) return Status::OK(); // WOW
     // descend if needed
     while( (node_idx = -node->forward[p[level]]) > 0) {
       if(node_idx >= nodes_.size()) return Status::Corruption("forward pointer overflow");
@@ -476,6 +581,7 @@ class HashTrie {
     while(cur_idx != 0x0fffffff) {
       HashNode& hnode = node->table[cur_idx-1];
       cur_idx = hnode.pointer; // next
+      if(cur_idx == 0) break; // WOW
       hnode.pointer = 0; // delete
       status *= PutToIsolatedNode(hnode.value, new_node_idx);
       if(!status.ok())
