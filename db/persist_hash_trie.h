@@ -35,6 +35,14 @@ class PersistHashTrie: public HashTrie {
     binlogger_.Wait(v);
     return ret;
   }
+  Status Scan(const Key& lower, 
+              const Key& upper, 
+              HashTrieIterator& ret) {
+    wrlock_.ReadLock();
+    Status status = HashTrie::Scan(lower, upper, ret);
+    wrlock_.ReadUnlock();
+    return status;
+  }
   Status Delete(const Key& key) {
     wrlock_.WriteLock();
     size_t v = binlogger_.AppendDelete(key);

@@ -38,7 +38,7 @@ class HashTrieIterator : public ReadIterator<KeyValue>{
   }
   bool Next() {
     if(current_ + 1 >= buffer_.size()) {
-      if(!Update().ok()) return false;
+      if(!Update().inspect()) return false;
     }
     if(current_ + 1 < buffer_.size()) {
       current_ ++;

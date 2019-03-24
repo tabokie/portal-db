@@ -19,7 +19,7 @@ Status HashTrieIterator::Update() {
     HashNode& hnode = node->table[idx-1];
     idx = hnode.pointer;
     char* p = ref_->values_.Get(hnode.value);
-    if(p && (lower <= p || lower.empty()) && !(upper <= p)) {
+    if(p && (lower <= p || lower.empty()) && (!(upper <= p) || upper.empty()) ) {
       buffer_.push_back(KeyValue(p, p + 8));
     }
   }
@@ -28,7 +28,7 @@ Status HashTrieIterator::Update() {
   // find next
   int32_t tmp;
   int32_t level = node->level;
-  while(path_ < upper) {
+  while(path_ < upper || upper.empty()) {
     // increment path
     if(path_[level] < 0) {
       // ascend

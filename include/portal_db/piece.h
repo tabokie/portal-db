@@ -70,7 +70,7 @@ class Value {
     Value ret;
     ret.value_ = new char[256];
     memset(ret.value_, 0, 256);
-    memcpy(ret.value_, a.c_str(), min(a.size(), 256));
+    if(a.size() > 0) memcpy(ret.value_, a.c_str(), min(a.size(), 256));
     return std::move(ret);
   }
  protected:
@@ -121,7 +121,11 @@ class Key : public CharwiseAccess {
     return *this;
   }
   virtual ~Key() { delete[] key_; }
-  bool empty() const { return key_ == NULL; }
+  bool empty() const { return key_ == NULL ||
+    *(reinterpret_cast<uint64_t*>(key_)) == 0; }
+  void set_empty() {
+    delete[] key_; key_ = NULL;
+  }
   char operator[](size_t idx) const {
     if(!key_) return 0;
     return ((char*)key_)[idx];
@@ -229,9 +233,9 @@ class Key : public CharwiseAccess {
 
 class KeyValue: public Key, public Value {
  public:
-  KeyValue() { }
-  KeyValue(const char* k): Key(k) { }
-  KeyValue(const std::string& k): Key(k.c_str()) { }
+  KeyValue(): Key(), Value() { }
+  KeyValue(const char* k): Key(k), Value() { }
+  KeyValue(const std::string& k): Key(k.c_str()), Value() { }
   KeyValue(const char* k, const char* v, size_t len = 256)
     : Key(k), Value(v,len) { }
   KeyValue(const std::string& k, const char* v, size_t len = 256)
@@ -239,7 +243,7 @@ class KeyValue: public Key, public Value {
   KeyValue(const std::string& k, const std::string& v)
     : KeyValue(k.c_str(), v.c_str()) { }
   KeyValue(const KeyValue& rhs): Key(rhs), Value(rhs) { }
-  KeyValue(KeyValue&& rhs): Key(rhs), Value(rhs) { }
+  KeyValue(KeyValue&& rhs): Key(std::move(rhs)), Value(std::move(rhs)) { }
   KeyValue& operator=(KeyValue&& rhs) {
     Key::operator=(std::move(rhs));
     Value::operator=(std::move(rhs));
@@ -247,11 +251,12 @@ class KeyValue: public Key, public Value {
   }
   static KeyValue from_string(std::string a, std::string b) {
     KeyValue ret;
-    memset(ret.key_, 0, 8);
-    memcpy(ret.key_, a.c_str(), min(a.size(), 8) );
+    ret.init(); // bug
+    memset((char*)ret.key_, 0, 8);
+    if(a.size() > 0) memcpy(ret.key_, a.c_str(), min(a.size(), 8) );
     ret.value_ = new char[256];
     memset(ret.value_, 0, 256);
-    memcpy(ret.value_, b.c_str(), min(b.size(), 256));
+    if(b.size() > 0) memcpy(ret.value_, b.c_str(), min(b.size(), 256));
     return std::move(ret);
   }
   ~KeyValue() { }

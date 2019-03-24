@@ -13,6 +13,13 @@
 
 namespace portal_db {
 
+// Client Protocol //
+// 3 bytes of OP code + optional parameter
+// GET + 8-byte key
+// PUT + 8-byte key + 256-byte value
+// DEL + 8-byte key
+// SCN + 8-byte lower + 8-byte upper
+// MOR + 4-byte size
 class ClientImpl : public Client, public NoCopy {
  public:
   ClientImpl()
@@ -77,7 +84,7 @@ class ClientImpl : public Client, public NoCopy {
   Status Get(const Key& key, KeyValue& ret) {
     if(socket_ == INVALID_SOCKET)
       return Status::Corruption("invalid socket");
-    Status status = Send("GET");
+    Status status = Send(std::string("GET") + key.to_string());
     if(!status.ok()) return status;
     status *= Receive(ret);
     return status;
@@ -85,7 +92,12 @@ class ClientImpl : public Client, public NoCopy {
   Status Put(const Key& key, const Value& value) {
     if(socket_ == INVALID_SOCKET)
       return Status::Corruption("invalid socket");
-    return Status::OK();
+    Status status = Send(std::string("PUT") + key.to_string());
+    if(!status.ok()) return status;
+    status *= Send(value.pointer_to_slice<0,256>(), 256);
+    if(!status.ok()) return status;
+    status *= Receive();
+    return status;
   }
   Status Delete(const Key& key) {
     if(socket_ == INVALID_SOCKET)
@@ -95,27 +107,32 @@ class ClientImpl : public Client, public NoCopy {
   Status StartScan(const Key& lower, const Key& upper, bool sort) {
     if(socket_ == INVALID_SOCKET)
       return Status::Corruption("invalid socket");
-    return Status::OK();
+    Status status = Send(std::string("SCN") + lower.to_string() + upper.to_string());
+    if(!status.ok()) return status;
+    status *= Receive();
+    return status;
   }
   Status FetchScan(std::vector<KeyValue>& ret) {
     if(socket_ == INVALID_SOCKET)
       return Status::Corruption("invalid socket");
-    return Status::NotFound("not implemented");
-    // return Status::OK();
-  }
-  Status CloseScan() {
-    if(socket_ == INVALID_SOCKET)
-      return Status::Corruption("invalid socket");
-    return Status::OK();
+    Status status = Send(std::string("MOR"));
+    if(!status.ok()) return status;
+    status *= Receive(ret);
+    return status;
   }
  private:
-  static constexpr size_t buffer_len_ = 256 + 8;
+  static constexpr size_t buffer_len_ = 512;
   SOCKET socket_ = INVALID_SOCKET;
   std::unique_ptr<Channel<std::string, 10>> mailbox_;
   std::thread connection_; // one connection at a time
+  char buffer[buffer_len_ + 1];
+  uint32_t cur = 0;
   Status Send(std::string message) {
+    return Send(message.c_str(), message.length());
+  }
+  Status Send(const char* p, size_t len) {
     if(socket_ == INVALID_SOCKET) return Status::Corruption("invalid socket");
-    int iResult = send(socket_, message.c_str(), message.length(), 0);
+    int iResult = send(socket_, p, len, 0);
     if(iResult == SOCKET_ERROR) {
       return Status::IOError(
         std::to_string(WSAGetLastError()) + 
@@ -124,15 +141,43 @@ class ClientImpl : public Client, public NoCopy {
     }
     return Status::OK();
   }
-  Status Receive(KeyValue& ret) {
-    static char buffer[buffer_len_ + 1];
+  Status Receive() {
     if(socket_ == INVALID_SOCKET) 
       return Status::Corruption("invalid socket");
-    uint32_t len = 0;
-    int cur = 0;
-    do {
-      int start = 0;
-      int iResult = recv(socket_, buffer, buffer_len_, 0);
+    int len = buffer_len_;
+    while(cur < len) {
+      int iResult = recv(socket_, buffer + cur, buffer_len_ - cur, 0);
+      if(iResult == 0) {
+        closesocket(socket_);
+        socket_ = INVALID_SOCKET;
+        return Status::IOError("socket already closed");
+      }
+      else if(iResult < 0){
+        closesocket(socket_);
+        socket_ = INVALID_SOCKET;
+        return Status::IOError(
+          std::to_string(WSAGetLastError()) + 
+          " - error trying to recv"
+          );
+      }
+      cur += iResult;
+      if(cur >= 4 && *(reinterpret_cast<uint32_t*>(buffer)) != 0)
+        return Status::IOError("no expected header");
+      if(cur >= 8)
+        len = *(reinterpret_cast<uint32_t*>(buffer+4)) + 8;
+    }
+    cur -= len;
+    if(buffer[8] == 'O' && buffer[9] == 'K') return Status::OK();
+    return Status::IOError(std::string(buffer + 8, len-8));
+  }
+  Status Receive(KeyValue& ret) {
+    if(socket_ == INVALID_SOCKET) 
+      return Status::Corruption("invalid socket");
+    while(cur < 256 + 8) {
+      if(cur >= 4 && *(reinterpret_cast<uint32_t*>(buffer)) == 0) {
+        return Status::IOError(std::string(buffer + 4, cur-4));
+      }
+      int iResult = recv(socket_, buffer + cur, buffer_len_ - cur, 0);
       if(iResult == 0) {
         socket_ = INVALID_SOCKET;
         return Status::IOError("socket already closed");
@@ -144,22 +189,46 @@ class ClientImpl : public Client, public NoCopy {
           " - error trying to recv"
           );
       }
-      // std::cout << "iResult = " << iResult << std::endl;
-      if(len == 0) {
-        assert(iResult >= 4);
-        len = *(reinterpret_cast<uint32_t*>(buffer));
-        start = 4;
-        // std::cout << "len = " << len << std::endl;
+      cur += iResult;
+    }
+    cur -= 264;
+    for(int i =- 0; i < 8; i++) ret[i] = buffer[i];
+    ret.copy<0,256>(buffer + 8);
+    return Status::OK();
+  }
+  Status Receive(std::vector<KeyValue>& ret) {
+    if(socket_ == INVALID_SOCKET) 
+      return Status::Corruption("invalid socket");
+    int len = buffer_len_;
+    uint32_t size = 0x0fffffff;
+    while(cur < len && size > 0) {
+      int iResult = recv(socket_, buffer + cur, buffer_len_ - cur, 0);
+      if(iResult == 0) {
+        closesocket(socket_);
+        socket_ = INVALID_SOCKET;
+        return Status::IOError("socket already closed");
       }
-      len -= iResult;
-      for(cur; cur < 8 && start < iResult; cur ++, start ++) {
-        ret[cur] = buffer[start];
+      else if(iResult < 0){
+        closesocket(socket_);
+        socket_ = INVALID_SOCKET;
+        return Status::IOError(
+          std::to_string(WSAGetLastError()) + 
+          " - error trying to recv"
+          );
       }
-      if(cur >= 8 && cur < 256 + 8 && start < iResult) {
-        ret.copy(cur-8, min(iResult - start, 264-cur), buffer + start);
-        cur += iResult - start;
+      cur += iResult;
+      if(cur >= 4 && size == 0x0fffffff) {
+        size = *(reinterpret_cast<uint32_t*>(buffer));
+        if(size == 0)
+          return Status::IOError("no more");
+        cur -= 4;
       }
-    } while(len > 0 && cur < 256 + 8);
+      if(cur >= 264) {
+        ret.push_back(KeyValue(buffer, buffer + 8));
+        cur -= 264;
+        size --;
+      }
+    }
     return Status::OK();
   }
 };

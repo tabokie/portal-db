@@ -4,22 +4,22 @@ persistent and scalable in-memory key-value engine. **PingCAP** internship homew
 
 ## Todo
 
-- Server Front-end
-	-	[x] socket \* thread
-	-	[ ] socket \* multiplexing
-  -	[ ] chunk recovery from break
+- Server
+	-	[x] socket + threads
+	-	[ ] socket + multiplexing
+  -	[x] chunk recovery from break
 - Query Dispatcher
   - [ ] range dispatch and sharding
 - Storage Engine
   - [x] HashTrie
   - [x] `SCAN` operation and iterator
-  -	[x] read-write thread safety
-  - [ ] lock-free thread safety
+  -	[x] rwlock thread safety
+  - [ ] tested lock-free thread safety
 - Durability
   - [x] snapshot and recovery
-  - [ ] bin-log and recovery
-  - [ ] thread safety
-  - [ ] persist benchmark
+  - [x] bin-log and recovery
+  - [ ] faster thread safety
+  - [x] persist benchmark
 
 ## Feature
 
@@ -83,3 +83,19 @@ bin-log     :   0 ~ 2.7 MB
 snapshot    :   2.3713 seconds, 106.17 MB/s
 bin-log     :   0.136 seconds
 ```
+
+## Server
+
+<p align="center">
+    <img src="./docs/server_screen.png" alt="server"  width="357" height="442">
+    <p align="center">
+        <em>server</em>
+    </p>
+</p>
+
+<p align="center">
+    <img src="./docs/client_screen.png" alt="client"  width="357" height="442">
+    <p align="center">
+        <em>client</em>
+    </p>
+</p>

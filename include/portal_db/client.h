@@ -21,7 +21,6 @@ class Client {
   virtual Status Delete(const Key& key) = 0;
   virtual Status StartScan(const Key& lower, const Key& upper, bool sort) = 0;
   virtual Status FetchScan(std::vector<KeyValue>& ret) = 0;
-  virtual Status CloseScan() = 0;
   static std::unique_ptr<Client> NewClient();
 };
 
