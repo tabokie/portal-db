@@ -2,3 +2,6 @@
 *.obj
 *.o
 *tmp*
+*.bin
+*.snapshot
+*.log

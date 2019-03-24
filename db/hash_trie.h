@@ -70,7 +70,7 @@ class HashTrie {
   friend HashTrieIterator;
  public:
   HashTrie(const std::string& filename)
-    : values_(filename) { 
+    : values_(filename + ".snapshot") { 
       nodes_.push_back(HashTrieNode<hash_size_>::MakeNode(0, 0, 0, 0)); 
     }
   virtual ~HashTrie() { }
