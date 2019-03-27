@@ -9,27 +9,27 @@ namespace portal_db {
 
 class AtomicLock : public NoCopy {
  public:
- 	AtomicLock() { } // dummy lock
- 	AtomicLock(std::atomic<bool>& lock): ref_(&lock) {
- 		bool tmp = false;
-    // compete for mutation lock
+  AtomicLock() { } // dummy lock
+  AtomicLock(std::atomic<bool>& lock): ref_(&lock) {
+    bool tmp = false;
+    // compete for lock
     while(!std::atomic_compare_exchange_strong(
       ref_,
       &tmp,
       true
       )) { tmp = false; }
- 	}
- AtomicLock(AtomicLock&& rhs): ref_(rhs.ref_) {
- 	rhs.ref_ = NULL;
- }
-	~AtomicLock() {
-		if(ref_) {
-			assert(ref_->load());
-			ref_->store(false);	
-		}
-	}
+  }
+  AtomicLock(AtomicLock&& rhs): ref_(rhs.ref_) {
+    rhs.ref_ = NULL;
+  }
+  ~AtomicLock() {
+    if(ref_) {
+      assert(ref_->load());
+      ref_->store(false); 
+    }
+  }
  private:
- 	std::atomic<bool>* ref_ = NULL;
+  std::atomic<bool>* ref_ = NULL;
 };
 
 } // namespace portal_db

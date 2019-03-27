@@ -92,7 +92,6 @@ class PagedPool: public SequentialFile {
     size_t fileSize = SequentialFile::size();
     uint32_t sliceSize;
     Status ret = Read(0, sizeof(uint32_t), reinterpret_cast<char*>(&sliceSize));
-    std::cout << "Slice Size = " << sliceSize << std::endl;
     size_t offset = snapshot_header_;
     for(size_t bucket = 0; 
       bucket < bucket_num_ && 
