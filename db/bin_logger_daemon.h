@@ -10,6 +10,8 @@
 namespace portal_db {
 
 class BinLoggerDaemon : public BinLogger {
+  // struct for pending operation
+  // unsafe reference
   struct OpStruct {
     const Key* key = NULL;
     const Value* value = NULL;
@@ -53,13 +55,17 @@ class BinLoggerDaemon : public BinLogger {
         finished_version_(0) {
     head_ = new OpStruct(0); // dummy
     tail_ = head_;
-    daemon_ = std::thread(std::mem_fn(&BinLoggerDaemon::DaemonThread), this); // late init
+    daemon_ = std::thread(
+      std::mem_fn(&BinLoggerDaemon::DaemonThread), 
+      this
+    ); // late init
   }
   Status Close() {
     close_.store(true);
     daemon_.join();
     return BinLogger::Close();
   }
+  // operation enqueue family //
   size_t AppendDelete(const Key& key) {
     // bug: use stack variable
     OpStruct* op = new OpStruct(std::atomic_fetch_add(&version_, 1), key);
@@ -76,6 +82,7 @@ class BinLoggerDaemon : public BinLogger {
     Enqueue(op);
     return op->version;
   }
+  // busy wait
   void Wait(size_t version) {
     while(true) {
       size_t v = finished_version_.load();
@@ -88,57 +95,14 @@ class BinLoggerDaemon : public BinLogger {
   std::atomic<OpStruct*> tail_;
   std::atomic<bool> close_;
   std::atomic<size_t> version_; // start from 1
-  std::atomic<size_t> finished_version_;
+  std::atomic<size_t> finished_version_; // latest finished op
   std::thread daemon_;
-  bool Enqueue(OpStruct* node) {
-    OpStruct* n = node;
-    OpStruct *t, *s;
-    n->next = NULL;
-    while(true) {
-      t = tail_.load();
-      s = t->next;
-      if( t == tail_) {
-        if(s == NULL) {
-          if(std::atomic_compare_exchange_strong(&t->next, &s, n)){
-            std::atomic_compare_exchange_strong(&tail_, &t, n);
-            return true;
-          }
-        } else {
-          std::atomic_compare_exchange_strong(&tail_, &t, s);
-        }
-      }
-    }
-  }
-  bool Dequeue(OpStruct& ret) { // single-thread
-    OpStruct *first;
-    first = head_->next;
-    if(first == NULL) return false;
-    first = head_;
-    head_ = head_->next.load();
-    ret = *head_;
-    delete first;
-    return true;
-  }
-  void DaemonThread() {
-    OpStruct cur(0);
-    while(!close_.load()) {
-      if(Dequeue(cur)) {
-        size_t v = cur.version;
-        if(cur.key == NULL) {
-          BinLogger::Compact();
-          finished_version_ = v; // bug
-        }
-        else if(cur.value == NULL){
-          BinLogger::AppendDelete(*cur.key);
-          finished_version_ = v;
-        } 
-        else {
-          BinLogger::AppendPut(*cur.key, *cur.value);
-          finished_version_ = v;
-        }
-      } else std::this_thread::yield();
-    }
-  }
+  // concurrent enqueue
+  bool Enqueue(OpStruct* node);
+  // single-thread dequeue
+  bool Dequeue(OpStruct& ret);
+  // instantiates as daemon thread
+  void DaemonThread();
 };
 
 } // namespace portal_db

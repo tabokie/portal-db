@@ -36,7 +36,7 @@ class HashTrieIterator : public ReadIterator<KeyValue>{
         buffer_(std::move(rhs.buffer_)) { 
     rhs.ref_ = NULL; rhs.node_id_ = -1;
   }
-  bool Next() {
+  bool Next() { // read from cache or Update
     if(current_ + 1 >= buffer_.size()) {
       if(!Update().inspect()) return false;
     }

@@ -97,6 +97,8 @@ Status SequentialFile::SetEnd(size_t offset) {
   return Status::OK();
 }
 
-#endif
+#else
+#error "file port not implemented"
+#endif // WIN_PLATFORM
 
 } // namespace portal_db
