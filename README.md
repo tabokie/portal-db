@@ -84,7 +84,7 @@ snapshot    :   2.3713 seconds, 106.17 MB/s
 bin-log     :   0.136 seconds
 ```
 
-## Server
+## PortalDB Server
 
 <p align="center">
     <img src="./docs/server_screen.png" alt="server"  width="357" height="442">
@@ -99,3 +99,13 @@ bin-log     :   0.136 seconds
         <em>client</em>
     </p>
 </p>
+
+## Build
+
+Project is originally built with MSVC Compiler and NMAKE Build Tool, build instructions are based on this specific tool chain.
+
+Use `nmake build` to build dll library. You can reference public interface of PortalDB with `./include/portal_db` when linking against `portal_db.dll`.
+
+Use `nmake network_test` to build executable for client-server application. Deploy as needed on your host machine.
+
+Use `nmake test TEST=[target_module]` to build corresponding unit-test executables.

@@ -5,3 +5,5 @@
 *.bin
 *.snapshot
 *.log
+*.dll
+*.lib

@@ -22,11 +22,11 @@ namespace portal_db {
 // MOR + 4-byte size
 class ClientImpl : public Client, public NoCopy {
  public:
-  ClientImpl()
-    : mailbox_(std::make_unique<Channel<std::string, 10>>()) { }
+  ClientImpl() { }
+    // : mailbox_(std::make_unique<Channel<std::string, 10>>()) { }
   ClientImpl(ClientImpl&& rhs)
-    : mailbox_(std::move(rhs.mailbox_)), 
-      connection_(std::move(rhs.connection_)) { }
+    // : mailbox_(std::move(rhs.mailbox_)), 
+    : connection_(std::move(rhs.connection_)) { }
   ~ClientImpl() { }
   Status Connect(std::string ip, std::string port, std::string name);
   Status Close();
