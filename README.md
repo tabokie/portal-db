@@ -40,6 +40,8 @@ Also, to provide transaction-level persistency for in-memory data, portal-db app
 
 It's worth noticing that portal-db also sacrifices `very-fast-scan`, `fast-recovery` in pursuit of those features. In another word, portal-db is purely an attempt to reach satisfiable tradeoff for this specific workload.
 
+refer to [db-index](https://github.com/tabokie/hi-note/blob/master/docs/db-and-sys/index.md) for more info about database index structure design. 
+
 ## Benchmark
 
 - Setup
