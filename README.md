@@ -108,6 +108,8 @@ Project is originally built with MSVC Compiler and NMAKE Build Tool, build instr
 
 Use `nmake build` to build dll library. You can reference public interface of PortalDB with `./include/portal_db` when linking against `portal_db.dll`.
 
-Use `nmake network_test` to build executable for client-server application. Deploy as needed on your host machine.
+Use `nmake unittest` to build all-in-one unittest executable.
 
-Use `nmake test TEST=[target_module]` to build corresponding unit-test executables.
+Use `nmake cs_sample` to build executable for client-server application. Deploy as needed on your host machine.
+
+Use `nmake customized_test TEST=[target_module]` to build corresponding unit-test executables.

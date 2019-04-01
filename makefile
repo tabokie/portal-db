@@ -2,6 +2,7 @@
 # with no wildcard capture
 # run test by `nmake test TEST=$target$ ADD=$addition_src$`
 
+# target not colllide with actual file name
 # careful not to override global variable
 LOCAL_INCLUDE = /I ./include /I .
 FLAG = /EHsc
@@ -16,14 +17,18 @@ build:
   cl $(LOCAL_INCLUDE) $(DB_SRC) $(NET_SRC) $(FLAG) /LD /Feportal_db
 .PHONY : build
 
-test: test/$(TEST)_test.cc
-  cl $(LOCAL_INCLUDE) $(TEST_LIB) test/$(TEST)_test.cc $(ADD) $(FLAG) $(TEST_FLAG)
-.PHONY : test
+unittest:
+  cl $(LOCAL_INCLUDE) $(TEST_LIB) test/*.cc $(NET_SRC) $(DB_SRC) $(FLAG) $(TEST_FLAG)
+.PHONY : unittest
 
-network_test:
-  cl $(LOCAL_INCLUDE) test/client_test.cc $(NET_SRC) $(DB_SRC) $(FLAG)
-  cl $(LOCAL_INCLUDE) test/server_test.cc $(NET_SRC) $(DB_SRC) $(FLAG)
-.PHONY: network_test
+customized_test:
+  cl $(LOCAL_INCLUDE) $(TEST_LIB) test/$(TEST)_test.cc $(ADD) $(FLAG) $(TEST_FLAG)
+.PHONY : customized_test
+
+cs_sample:
+  cl $(LOCAL_INCLUDE) sample/client_sample.cc $(NET_SRC) $(DB_SRC) $(FLAG)
+  cl $(LOCAL_INCLUDE) sample/server_sample.cc $(NET_SRC) $(DB_SRC) $(FLAG)
+.PHONY: cs_sample
 
 clean:
   rm *.exe, *.obj

@@ -81,4 +81,7 @@ class Timer{
 
 } // namespace test
 
+extern test::Random rnd;
+extern test::Timer timer;
+
 #endif // TEST_UTIL_H_

@@ -9,8 +9,6 @@
 
 using namespace portal_db;
 
-test::Random rnd;
-
 TEST(KeyTest, RAII) {
   size_t size = 10000;
   std::vector<Key> buffer;

@@ -11,8 +11,6 @@
 
 using namespace portal_db;
 
-test::Timer timer;
-
 TEST(PersistHashTrieTest, BasicTest) {
   PersistHashTrie store("test_persist_hash_trie");
   size_t size = 10000;

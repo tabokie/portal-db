@@ -10,8 +10,6 @@
 
 using namespace portal_db;
 
-test::Random rnd;
-
 TEST(BinLoggerTest, Write) {
   BinLogger logger("unique.bin");
   size_t size = 10000;

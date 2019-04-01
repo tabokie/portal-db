@@ -10,8 +10,6 @@
 
 using namespace portal_db;
 
-test::Timer timer;
-
 TEST(HashTrieTest, BasicTest) {
   HashTrie store("test_hash_trie");
   size_t size = 10000;
