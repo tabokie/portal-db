@@ -86,22 +86,6 @@ snapshot    :   2.3713 seconds, 106.17 MB/s
 bin-log     :   0.136 seconds
 ```
 
-## PortalDB Server
-
-<p align="center">
-    <img src="./docs/server_screen.png" alt="server"  width="357" height="442">
-    <p align="center">
-        <em>server</em>
-    </p>
-</p>
-
-<p align="center">
-    <img src="./docs/client_screen.png" alt="client"  width="357" height="442">
-    <p align="center">
-        <em>client</em>
-    </p>
-</p>
-
 ## Build
 
 Project is originally built with MSVC Compiler and NMAKE Build Tool, build instructions are based on this specific tool chain.
